@@ -69,3 +69,5 @@ A: 进入 Actions 页面，点击 "Run workflow" 即可。
 ---
 
 Made with ❤️ for researchers
+
+Last updated: Sun Apr  5 15:00:56 +08 2026
