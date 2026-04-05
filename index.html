@@ -1,108 +1,261 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Citation Tracker</title>
+<title>Citation Analytics</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;color:#1e293b;padding:2rem}
-@media(prefers-color-scheme:dark){body{background:#0f172a;color:#f1f5f9}}
-.container{max-width:900px;margin:0 auto}
+:root{
+  --bg:#f8fafc;--card:#fff;--text:#1e293b;--muted:#64748b;
+  --primary:#3b82f6;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--muted:#94a3b8}
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:1.5rem}
+.container{max-width:1100px;margin:0 auto}
 h1{text-align:center;margin-bottom:1.5rem;font-size:1.75rem}
-.stats{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
-.stat{background:#fff;padding:1rem 1.5rem;border-radius:12px;flex:1;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e2e8f0}
-@media(prefers-color-scheme:dark){.stat{background:#1e293b;border-color:#334155}}
-.stat-num{font-size:1.75rem;font-weight:700;color:#3b82f6}
-.stat-label{font-size:0.8rem;color:#64748b;margin-top:0.25rem}
-.paper{background:#fff;margin-bottom:0.75rem;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e2e8f0}
-@media(prefers-color-scheme:dark){.paper{background:#1e293b;border-color:#334155}}
+
+/* 概览统计 */
+.overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1.5rem}
+.ov-card{background:var(--card);border-radius:12px;padding:1.25rem;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid rgba(0,0,0,0.05)}
+.ov-num{font-size:1.75rem;font-weight:700;color:var(--primary)}
+.ov-label{font-size:0.75rem;color:var(--muted);margin-top:0.25rem;text-transform:uppercase;letter-spacing:0.5px}
+.ov-change{font-size:0.7rem;margin-top:0.25rem}
+.ov-change.up{color:var(--success)}.ov-change.down{color:var(--danger)}
+
+/* 图表网格 */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:1rem;margin-bottom:1.5rem}
+.chart-card{background:var(--card);border-radius:12px;padding:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid rgba(0,0,0,0.05)}
+.chart-title{font-weight:600;margin-bottom:1rem;font-size:0.95rem}
+.chart-wrap{height:220px;position:relative}
+
+/* 论文列表 */
+.section-title{font-weight:600;margin-bottom:1rem;font-size:1rem;display:flex;align-items:center;gap:0.5rem}
+.paper{background:var(--card);margin-bottom:0.75rem;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid rgba(0,0,0,0.05)}
 .paper-head{padding:1rem 1.25rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem}
-.paper-head:hover{background:rgba(59,130,246,0.05)}
+.paper-head:hover{background:rgba(59,130,246,0.03)}
 .paper-info{flex:1;min-width:0}
-.paper-title{font-weight:600;font-size:0.95rem;line-height:1.4}
-.paper-meta{font-size:0.8rem;color:#64748b;margin-top:0.25rem}
-.paper-cites{background:#3b82f6;color:#fff;padding:0.35rem 0.85rem;border-radius:20px;font-weight:600;font-size:0.9rem;white-space:nowrap}
-.chart-area{max-height:0;overflow:hidden;transition:max-height 0.3s ease;background:#f8fafc}
-@media(prefers-color-scheme:dark){.chart-area{background:#0f172a}}
-.chart-area.open{max-height:300px}
-.chart-wrapper{padding:1rem;height:250px}
-.loading{text-align:center;padding:3rem;color:#64748b}
-.error{text-align:center;padding:3rem;color:#ef4444}
+.paper-title{font-weight:600;font-size:0.9rem;line-height:1.4}
+.paper-meta{font-size:0.75rem;color:var(--muted);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap}
+.paper-cites{text-align:right}
+.paper-cites .num{font-size:1.1rem;font-weight:700;color:var(--primary)}
+.paper-cites .trend{font-size:0.7rem}
+.trend.up{color:var(--success)}.trend.down{color:var(--danger)}.trend.neutral{color:var(--muted)}
+.paper-chart{max-height:0;overflow:hidden;transition:max-height 0.3s ease;background:linear-gradient(to bottom,rgba(59,130,246,0.02),transparent)}
+@media(prefers-color-scheme:dark){.paper-chart{background:linear-gradient(to bottom,rgba(59,130,246,0.05),transparent)}}
+.paper-chart.open{max-height:320px}
+.chart-container{padding:1rem;height:260px}
+.arrow{transition:transform 0.2s;font-size:0.8rem;color:var(--muted)}
+.paper.open .arrow{transform:rotate(180deg)}
+
+/* 标签 */
+.badge{padding:0.15rem 0.5rem;border-radius:4px;font-size:0.65rem;font-weight:600;text-transform:uppercase}
+.badge-hot{background:linear-gradient(135deg,#ef4444,#f97316);color:#fff}
+.badge-warm{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff}
+.badge-normal{background:#e2e8f0;color:#64748b}
+@media(prefers-color-scheme:dark){.badge-normal{background:#334155;color:#94a3b8}}
+
+.loading{text-align:center;padding:3rem;color:var(--muted)}
+.error{text-align:center;padding:3rem;color:var(--danger)}
+@media(max-width:768px){
+  .charts{grid-template-columns:1fr}
+  .chart-wrap{height:180px}
+}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>📊 Citation Tracker</h1>
-  <div class="stats" id="stats"></div>
-  <div id="list"><div class="loading">Loading...</div></div>
+  <h1>📊 Citation Analytics</h1>
+  
+  <!-- 概览统计 -->
+  <div class="overview" id="overview"></div>
+  
+  <!-- 图表区域 -->
+  <div class="charts">
+    <div class="chart-card">
+      <div class="chart-title">📈 每日总引用量趋势</div>
+      <div class="chart-wrap"><canvas id="chart-total"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🔥 每日新增引用</div>
+      <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">📚 论文年份分布</div>
+      <div class="chart-wrap"><canvas id="chart-years"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🏆 引用量 Top 10</div>
+      <div class="chart-wrap"><canvas id="chart-top10"></canvas></div>
+    </div>
+  </div>
+  
+  <!-- 论文列表 -->
+  <div class="section-title">📄 所有论文</div>
+  <div id="papers"></div>
 </div>
+
 <script>
-// 相对路径 - 从同仓库读取 CSV
+// ============ 配置 ============
 var CSV_URL = 'citations.csv';
-var papersData=[],charts={};
+var CHARTS = {};
+var PAPER_DATA = [];
+// ==============================
 
 function parseCSV(csv){
   var lines=csv.trim().split('\n');
-  var result=[];
+  var r=[];
   for(var i=1;i<lines.length;i++){
-    var values=[],inQuotes=false,current='';
+    var vals=[],inQ=false,cur='';
     for(var j=0;j<lines[i].length;j++){
       var c=lines[i][j];
-      if(c==='"'){inQuotes=!inQuotes}
-      else if(c==','&&!inQuotes){values.push(current.trim());current=''}
-      else{current+=c}
+      if(c==='"'){inQ=!inQ}
+      else if(c==','&&!inQ){vals.push(cur.trim());cur=''}
+      else{cur+=c}
     }
-    values.push(current.trim());
-    result.push({date:values[0]||'',title:values[1]||'',citations:parseInt(values[2])||0,year:values[3]||'',venue:values[4]||''});
+    vals.push(cur.trim());
+    r.push({date:vals[0]||'',title:vals[1]||'',citations:parseInt(vals[2])||0,year:vals[3]||'',venue:vals[4]||''});
   }
-  return result;
+  return r;
 }
 
 fetch(CSV_URL)
-  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.text()})
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.text()})
   .then(function(csv){
     var data=parseCSV(csv);
+    var dates=[...new Set(data.map(function(d){return d.date}))].sort();
+    
+    // 按论文分组
     var papers={};
-    data.forEach(function(r){
-      if(!papers[r.title])papers[r.title]={title:r.title,year:r.year,venue:r.venue,history:[]};
-      papers[r.title].history.push({date:r.date,citations:r.citations});
+    data.forEach(function(d){
+      if(!papers[d.title])papers[d.title]={title:d.title,year:d.year,venue:d.venue,history:[]};
+      papers[d.title].history.push({date:d.date,citations:d.citations});
     });
-    papersData=Object.values(papers);
+    PAPER_DATA=Object.values(papers);
+    
+    // 最新引用数
     var latest={};
-    data.forEach(function(r){latest[r.title]=r.citations});
+    data.forEach(function(d){latest[d.title]=d.citations});
+    
+    // ============ 概览统计 ============
     var total=Object.values(latest).reduce(function(a,b){return a+b},0);
-    var dates=[...new Set(data.map(function(r){return r.date}))];
-    document.getElementById('stats').innerHTML=
-      '<div class="stat"><div class="stat-num">'+total.toLocaleString()+'</div><div class="stat-label">Total Citations</div></div>'+
-      '<div class="stat"><div class="stat-num">'+papersData.length+'</div><div class="stat-label">Papers</div></div>'+
-      '<div class="stat"><div class="stat-num">'+dates.length+'</div><div class="stat-label">Days Tracked</div></div>';
-    papersData.sort(function(a,b){return(latest[b.title]||0)-(latest[a.title]||0)});
-    var html='';
-    papersData.forEach(function(p,i){
-      html+='<div class="paper"><div class="paper-head" onclick="toggleChart('+i+')">'+
-        '<div class="paper-info"><div class="paper-title">'+p.title+'</div><div class="paper-meta">'+(p.year||'')+' '+(p.venue||'')+'</div></div>'+
-        '<div class="paper-cites">'+(latest[p.title]||0)+'</div></div>'+
-        '<div class="chart-area" id="ca'+i+'"><div class="chart-wrapper"><canvas id="cv'+i+'"></canvas></div></div></div>';
+    var today=dates[dates.length-1];
+    var yesterday=dates.length>1?dates[dates.length-2]:null;
+    var todayTotal=latest[data.filter(function(d){return d.date===today}).map(function(d){return d.title})[0]]||0;
+    var yesterdayTotal=yesterday?data.filter(function(d){return d.date===yesterday}).reduce(function(s,d){return s+(latest[d.title]||0)},0):0;
+    var dailyGain=todayTotal-yesterdayTotal;
+    var weekAgo=dates.length>7?dates[dates.length-8]:dates[0];
+    var weeklyGain=weekAgo?data.filter(function(d){return d.date===weekAgo}).reduce(function(s,d){return s+(latest[d.title]||0)},0):0;
+    weeklyGain=todayTotal-weeklyGain;
+    
+    document.getElementById('overview').innerHTML=
+      '<div class="ov-card"><div class="ov-num">'+total.toLocaleString()+'</div><div class="ov-label">总引用</div></div>'+
+      '<div class="ov-card"><div class="ov-num">'+(todayTotal||0).toLocaleString()+'</div><div class="ov-label">今日总数</div><div class="ov-change '+(dailyGain>=0?'up':'down')+'">'+(dailyGain>=0?'+':'')+dailyGain+'</div></div>'+
+      '<div class="ov-card"><div class="ov-num">'+PAPER_DATA.length+'</div><div class="ov-label">论文数</div></div>'+
+      '<div class="ov-card"><div class="ov-num">'+(weeklyGain>=0?'+':'')+weeklyGain+'</div><div class="ov-label">本周变化</div><div class="ov-change '+(weeklyGain>=0?'up':'down')+'">'+(weeklyGain/7*7).toFixed(1)+'/天</div></div>'+
+      '<div class="ov-card"><div class="ov-num">'+(dates.length>1?Math.round(total/dates.length*10)/10:total)+'</div><div class="ov-label">日均引用</div></div>'+
+      '<div class="ov-card"><div class="ov-num">'+dates.length+'</div><div class="ov-label">追踪天数</div></div>';
+    
+    // ============ 图表1: 总引用趋势 ============
+    var totalTrend=dates.map(function(d){
+      return data.filter(function(r){return r.date===d}).reduce(function(s,r){return s+(latest[r.title]||0)},0);
     });
-    document.getElementById('list').innerHTML=html;
+    CHARTS['total']=new Chart(document.getElementById('chart-total'),{
+      type:'line',
+      data:{labels:dates.map(function(d){return d.slice(5)}),datasets:[{data:totalTrend,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.4,pointRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'}}}}
+    });
+    
+    // ============ 图表2: 每日新增 ============
+    var dailyGainArr=[0];
+    for(var i=1;i<totalTrend.length;i++)dailyGainArr.push(totalTrend[i]-totalTrend[i-1]);
+    CHARTS['daily']=new Chart(document.getElementById('chart-daily'),{
+      type:'bar',
+      data:{labels:dates.map(function(d){return d.slice(5)}),datasets:[{data:dailyGainArr,backgroundColor:dailyGainArr.map(function(v){return v>=0?'rgba(34,197,94,0.7)':'rgba(239,68,68,0.7)'})}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{precision:0}}}}
+    });
+    
+    // ============ 图表3: 年份分布 ============
+    var yearCount={};
+    PAPER_DATA.forEach(function(p){var y=p.year||'N/A';yearCount[y]=(yearCount[y]||0)+1});
+    var years=Object.keys(yearCount).sort();
+    var yearCites={};
+    years.forEach(function(y){yearCites[y]=0});
+    PAPER_DATA.forEach(function(p){yearCites[p.year||'N/A']=(yearCites[p.year||'N/A']||0)+(latest[p.title]||0)});
+    CHARTS['years']=new Chart(document.getElementById('chart-years'),{
+      type:'bar',
+      data:{
+        labels:years,
+        datasets:[{label:'论文数',data:years.map(function(y){return yearCount[y]}),backgroundColor:'rgba(59,130,246,0.7)'},
+                  {label:'引用数',data:years.map(function(y){return yearCites[y]}),backgroundColor:'rgba(34,197,94,0.7)'}]
+      },
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{boxWidth:12,padding:10}}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'}}}}
+    });
+    
+    // ============ 图表4: Top 10 ============
+    PAPER_DATA.sort(function(a,b){return(latest[b.title]||0)-(latest[a.title]||0)});
+    var top10=PAPER_DATA.slice(0,10);
+    CHARTS['top10']=new Chart(document.getElementById('chart-top10'),{
+      type:'bar',
+      data:{labels:top10.map(function(p){return p.title.length>30?p.title.slice(0,30)+'...':p.title}),datasets:[{data:top10.map(function(p){return latest[p.title]||0}),backgroundColor:'rgba(59,130,246,0.7)'}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'}},y:{grid:{display:false}}}}
+    });
+    
+    // ============ 论文列表 ============
+    var html='';
+    PAPER_DATA.forEach(function(p,i){
+      var cites=latest[p.title]||0;
+      var gains=[];
+      p.history.sort(function(a,b){return a.date.localeCompare(b.date)});
+      for(var j=1;j<p.history.length;j++)gains.push(p.history[j].citations-p.history[j-1].citations);
+      var recentGain=gains.length>0?gains.slice(-7).reduce(function(a,b){return a+b},0):0;
+      var avgGain=gains.length>0?(gains.reduce(function(a,b){return a+b},0)/gains.length).toFixed(1):0;
+      var badge='';
+      if(cites>=100)badge='<span class="badge badge-hot">Hot</span>';
+      else if(cites>=30)badge='<span class="badge badge-warm">Warm</span>';
+      var trend=recentGain>0?'up':recentGain<0?'down':'neutral';
+      var trendIcon=recentGain>0?'↑':recentGain<0?'↓':'−';
+      html+='<div class="paper" id="paper-'+i+'">'+
+        '<div class="paper-head" onclick="toggle('+i+')">'+
+          '<div class="paper-info">'+
+            '<div class="paper-title">'+badge+' '+p.title+'</div>'+
+            '<div class="paper-meta">'+
+              '<span>'+(p.year||'N/A')+'</span>'+
+              '<span>'+(p.venue||'')+'</span>'+
+              '<span>日均 '+avgGain+'</span>'+
+            '</div>'+
+          '</div>'+
+          '<div class="paper-cites">'+
+            '<div class="num">'+cites+'</div>'+
+            '<div class="trend '+trend+'">'+trendIcon+recentGain+' (近7天)</div>'+
+          '</div>'+
+          '<div class="arrow">▼</div>'+
+        '</div>'+
+        '<div class="paper-chart" id="pchart-'+i+'"><div class="chart-container"><canvas id="pc-'+i+'"></canvas></div></div>'+
+      '</div>';
+    });
+    document.getElementById('papers').innerHTML=html;
   })
-  .catch(function(e){document.getElementById('list').innerHTML='<div class="error">Failed: '+e.message+'</div>'});
+  .catch(function(e){document.querySelector('.container').innerHTML='<div class="error">❌ 加载失败: '+e.message+'</div>'});
 
-function toggleChart(i){
-  var area=document.getElementById('ca'+i);
+function toggle(i){
+  var area=document.getElementById('pchart-'+i);
   var isOpen=area.classList.contains('open');
-  document.querySelectorAll('.chart-area').forEach(function(el){el.classList.remove('open')});
+  document.querySelectorAll('.paper-chart').forEach(function(el){el.classList.remove('open')});
+  document.querySelectorAll('.paper').forEach(function(el){el.classList.remove('open')});
   if(!isOpen){
     area.classList.add('open');
-    if(!charts[i]){
-      var p=papersData[i];
+    document.getElementById('paper-'+i).classList.add('open');
+    if(!CHARTS['p'+i]){
+      var p=PAPER_DATA[i];
       p.history.sort(function(a,b){return a.date.localeCompare(b.date)});
-      charts[i]=new Chart(document.getElementById('cv'+i),{
+      CHARTS['p'+i]=new Chart(document.getElementById('pc-'+i),{
         type:'line',
-        data:{labels:p.history.map(function(h){return h.date}),datasets:[{data:p.history.map(function(h){return h.citations}),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.3,pointRadius:4}]},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:false}}}
+        data:{labels:p.history.map(function(h){return h.date.slice(5)}),datasets:[{data:p.history.map(function(h){return h.citations}),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.1)',fill:true,tension:0.4,pointRadius:4,pointHoverRadius:6}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'}}}}
       });
     }
   }
