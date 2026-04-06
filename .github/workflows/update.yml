@@ -8,6 +8,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       
@@ -15,8 +16,11 @@ jobs:
         with:
           python-version: '3.11'
       
-      - run: pip install scholarly
-      - run: python scrape.py
+      - name: Run scraper
+        env:
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
+        run: python scrape.py
+        timeout-minutes: 8
       
       - name: Commit
         run: |
