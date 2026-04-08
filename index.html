@@ -24,7 +24,6 @@
             margin: 0 auto;
         }
         
-        /* Header Section */
         .header {
             text-align: center;
             margin-bottom: 40px;
@@ -216,7 +215,6 @@
             transform: rotate(180deg);
         }
         
-        /* Loading State */
         .loading {
             text-align: center;
             padding: 60px;
@@ -237,7 +235,6 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Footer */
         .footer {
             text-align: center;
             margin-top: 40px;
@@ -250,7 +247,6 @@
             text-decoration: none;
         }
         
-        /* Responsive */
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
@@ -272,6 +268,7 @@
             <p class="subtitle">Xin He (He Xin) - Google Scholar Analytics</p>
         </div>
         
+        <!-- 新增：总览统计卡片 -->
         <div class="stats-grid">
             <div class="stat-card total-citations">
                 <div class="stat-label">Total Citations</div>
@@ -290,15 +287,17 @@
             </div>
         </div>
         
+        <!-- 新增：总体趋势图 -->
         <div class="chart-container">
-            <div class="chart-title">📈 Daily Citation Trend (Last 30 Days)</div>
+            <div class="chart-title">📈 Overall Daily Citation Trend (Last 30 Days)</div>
             <div class="chart-wrapper">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
         
+        <!-- 原有：论文列表 -->
         <div class="papers-section">
-            <div class="papers-title">📑 Papers</div>
+            <div class="papers-title">📑 Papers (Click to view daily trend)</div>
             <div id="papersList">
                 <div class="loading">
                     <div class="spinner"></div>
@@ -316,6 +315,7 @@
     <script>
         let papersData = [];
         let trendChart = null;
+        let paperCharts = {};
         
         async function loadData() {
             try {
@@ -347,24 +347,22 @@
         function renderPage() {
             if (papersData.length === 0) return;
             
-            // Get all dates and papers
             const dates = [...new Set(papersData.map(p => p.Date))].sort();
             const papers = [...new Set(papersData.map(p => p.Title))];
             
-            // Calculate total citations per day
+            // 计算每日总引用
             const dailyTotals = dates.map(date => {
                 return papersData
                     .filter(p => p.Date === date)
                     .reduce((sum, p) => sum + parseInt(p.Citations || 0), 0);
             });
             
-            // Calculate daily new citations
             const dailyNew = dailyTotals.map((total, i) => {
                 if (i === 0) return 0;
                 return Math.max(0, total - dailyTotals[i - 1]);
             });
             
-            // Update stats cards
+            // 更新总览卡片
             const latestTotal = dailyTotals[dailyTotals.length - 1];
             const previousTotal = dailyTotals[dailyTotals.length - 2] || latestTotal;
             const totalDiff = latestTotal - previousTotal;
@@ -376,14 +374,13 @@
             document.getElementById('totalCitations').textContent = latestTotal.toLocaleString();
             document.getElementById('todayCitations').textContent = todayNew.toLocaleString();
             
-            // Update change indicators
             updateChangeIndicator('totalChange', totalDiff);
             updateChangeIndicator('todayChange', newDiff);
             
-            // Render trend chart (last 30 days)
+            // 渲染总体趋势图
             renderTrendChart(dates.slice(-30), dailyNew.slice(-30));
             
-            // Render papers list
+            // 渲染论文列表（带展开图表）
             renderPapersList(papers, dates);
         }
         
@@ -427,9 +424,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             backgroundColor: 'rgba(0,0,0,0.8)',
                             padding: 12,
@@ -440,53 +435,35 @@
                     },
                     scales: {
                         x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                maxTicksLimit: 10,
-                                color: '#888'
-                            }
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 10, color: '#888' }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0,0,0,0.05)'
-                            },
-                            ticks: {
-                                color: '#888'
-                            }
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#888' }
                         }
                     }
                 }
             });
         }
         
-        function renderPapersList(papers, dates) {
+        function renderPapersList(papers, allDates) {
             const container = document.getElementById('papersList');
             
             const papersHtml = papers.map((paper, index) => {
-                const paperData = papersData.filter(p => p.Title === paper);
+                const paperData = papersData.filter(p => p.Title === paper).sort((a, b) => 
+                    new Date(a.Date) - new Date(b.Date)
+                );
                 const latest = paperData[paperData.length - 1];
-                const citations = parseInt(latest.Citations || 0);
-                
-                // Calculate paper-specific daily data
-                const paperDaily = dates.map(date => {
-                    const dayData = paperData.find(p => p.Date === date);
-                    return dayData ? parseInt(dayData.Citations || 0) : 0;
-                });
-                
-                const paperDailyNew = paperDaily.map((total, i) => {
-                    if (i === 0) return 0;
-                    return Math.max(0, total - paperDaily[i - 1]);
-                });
+                const citations = parseInt(latest?.Citations || 0);
                 
                 return `
                     <div class="paper-item" onclick="togglePaper(${index}, this)">
                         <div class="paper-header">
                             <div>
                                 <div class="paper-title">${paper} <span class="expand-icon">▼</span></div>
-                                <div class="paper-meta">${latest.Authors || ''} • ${latest.Year || ''}</div>
+                                <div class="paper-meta">${latest?.Authors || ''} • ${latest?.Year || ''} • ${latest?.Venue || ''}</div>
                             </div>
                             <div class="paper-citations">${citations.toLocaleString()}</div>
                         </div>
@@ -501,48 +478,64 @@
             
             container.innerHTML = papersHtml;
             
-            // Store data for charts
+            // 预计算每篇论文的图表数据
             window.paperChartData = {};
             papers.forEach((paper, index) => {
-                const paperData = papersData.filter(p => p.Title === paper);
-                const paperDaily = dates.map(date => {
-                    const dayData = paperData.find(p => p.Date === date);
-                    return dayData ? parseInt(dayData.Citations || 0) : 0;
-                });
-                const paperDailyNew = paperDaily.map((total, i) => {
+                const paperData = papersData.filter(p => p.Title === paper).sort((a, b) => 
+                    new Date(a.Date) - new Date(b.Date)
+                );
+                
+                const dates = paperData.map(p => p.Date);
+                const dailyCitations = paperData.map(p => parseInt(p.Citations || 0));
+                const dailyNew = dailyCitations.map((total, i) => {
                     if (i === 0) return 0;
-                    return Math.max(0, total - paperDaily[i - 1]);
+                    return Math.max(0, total - dailyCitations[i - 1]);
                 });
-                window.paperChartData[index] = { dates, dailyNew: paperDailyNew };
+                
+                window.paperChartData[index] = { dates, dailyNew, dailyCitations };
             });
         }
         
         function togglePaper(index, element) {
             const isExpanded = element.classList.contains('expanded');
             
-            // Close all others
+            // 关闭其他已展开的
             document.querySelectorAll('.paper-item.expanded').forEach(el => {
-                el.classList.remove('expanded');
+                if (el !== element) {
+                    el.classList.remove('expanded');
+                }
             });
             
             if (!isExpanded) {
                 element.classList.add('expanded');
                 
-                // Render chart after expansion
+                // 渲染该论文的图表
                 setTimeout(() => {
-                    const ctx = document.getElementById(`paperChart${index}`).getContext('2d');
+                    const canvas = document.getElementById(`paperChart${index}`);
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
                     const data = window.paperChartData[index];
                     
-                    new Chart(ctx, {
+                    // 销毁旧图表
+                    if (paperCharts[index]) {
+                        paperCharts[index].destroy();
+                    }
+                    
+                    // 显示最近30天数据
+                    const recentDates = data.dates.slice(-30);
+                    const recentNew = data.dailyNew.slice(-30);
+                    
+                    paperCharts[index] = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: data.dates.slice(-30).map(d => {
+                            labels: recentDates.map(d => {
                                 const date = new Date(d);
                                 return `${date.getMonth()+1}/${date.getDate()}`;
                             }),
                             datasets: [{
                                 label: 'Daily New Citations',
-                                data: data.dailyNew.slice(-30),
+                                data: recentNew,
                                 borderColor: '#f5576c',
                                 backgroundColor: 'rgba(245, 87, 108, 0.1)',
                                 borderWidth: 2,
@@ -556,7 +549,15 @@
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { display: false }
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        title: (items) => {
+                                            const idx = items[0].dataIndex;
+                                            return data.dates.slice(-30)[idx];
+                                        }
+                                    }
+                                }
                             },
                             scales: {
                                 x: {
@@ -572,10 +573,11 @@
                         }
                     });
                 }, 100);
+            } else {
+                element.classList.remove('expanded');
             }
         }
         
-        // Load data on page load
         loadData();
     </script>
 </body>
