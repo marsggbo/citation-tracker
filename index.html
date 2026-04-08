@@ -65,7 +65,7 @@ h1{text-align:center;margin-bottom:2rem;color:#333}
       <div class="stat-change" id="totalChange"></div>
     </div>
     <div class="stat-card today">
-      <div class="stat-label">Today's New</div>
+      <div class="stat-label">Total Citations</div>
       <div class="stat-value" id="todayCites">-</div>
       <div class="stat-change" id="todayChange"></div>
     </div>
@@ -77,7 +77,7 @@ h1{text-align:center;margin-bottom:2rem;color:#333}
   
   <!-- 新增：总体趋势 -->
   <div class="trend-section">
-    <div class="trend-title">📈 Overall Daily Trend (Last 30 Days)</div>
+    <div class="trend-title">📈 Total Citations Trend (Last 30 Days)</div>
     <div class="trend-chart"><canvas id="overallTrend"></canvas></div>
   </div>
   
@@ -157,7 +157,7 @@ fetch(CSV_URL).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status)
       data: {
         labels: dates.slice(-30).map(d => d.slice(5)),
         datasets: [{
-          data: dailyNew.slice(-30),
+          data: dailyTotals.slice(-30),
           borderColor: '#667eea',
           backgroundColor: 'rgba(102, 126, 234, 0.1)',
           fill: true,
