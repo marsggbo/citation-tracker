@@ -1,229 +1,381 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Citation Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f8fafc;
+  --text:#1e293b;--text2:#64748b;--border:#e2e8f0;
+  --blue:#3b82f6;--blue2:rgba(59,130,246,.12);
+  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+  --r:12px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shm:0 4px 12px rgba(0,0,0,.08);
+  --shl:0 10px 30px rgba(0,0,0,.1);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#0f172a;
+  --text:#f1f5f9;--text2:#94a3b8;--border:#334155;
+  --blue2:rgba(59,130,246,.18);
+  --sh:0 1px 3px rgba(0,0,0,.3);--shm:0 4px 12px rgba(0,0,0,.3);--shl:0 10px 30px rgba(0,0,0,.3);
+}}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f5;color:#333;padding:2rem}
-@media(prefers-color-scheme:dark){body{background:#1a1a2e;color:#eee}}
-.container{max-width:900px;margin:0 auto}
-h1{text-align:center;margin-bottom:2rem;color:#333}
-@media(prefers-color-scheme:dark){h1{color:#fff}}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:1.25rem;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+.container{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem}
 
-.stats-container{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
-.stat-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:16px;padding:1.5rem;color:#fff;box-shadow:0 4px 15px rgba(102,126,234,0.4);text-align:center}
-.stat-card.total{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);box-shadow:0 4px 15px rgba(240,147,251,0.4)}
-.stat-card.today{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);box-shadow:0 4px 15px rgba(79,172,254,0.4)}
-.stat-label{font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;opacity:0.9;margin-bottom:0.5rem}
-.stat-value{font-size:2.5rem;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,0.2)}
-.stat-change{font-size:0.85rem;margin-top:0.3rem;opacity:0.95}
-.stat-change.up{color:#90ee90}
-.stat-change.down{color:#ffb6c1}
+/* ── Header ── */
+.header{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:var(--r);padding:2rem 2rem 1.5rem;color:#fff;box-shadow:var(--shl);text-align:center}
+.header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.5px}
+.header p{margin-top:.4rem;opacity:.85;font-size:.875rem}
 
-.trend-section{background:#fff;border-radius:16px;padding:1.5rem;margin-bottom:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
-@media(prefers-color-scheme:dark){.trend-section{background:#1e293b}}
-.trend-title{font-size:1.1rem;font-weight:600;margin-bottom:1rem;color:#333}
-@media(prefers-color-scheme:dark){.trend-title{color:#fff}}
-.trend-chart{height:200px}
+/* ── Stat Cards ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem}
+.stat-card{background:var(--surface);border-radius:var(--r);padding:1.25rem;box-shadow:var(--shm);border:1px solid var(--border);position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.stat-card.total::after{background:linear-gradient(90deg,#f093fb,#f5576c)}
+.stat-card.today::after{background:linear-gradient(90deg,#4facfe,#00f2fe)}
+.stat-card.count::after{background:linear-gradient(90deg,#43e97b,#38f9d7)}
+.stat-card.avg::after{background:linear-gradient(90deg,#fa709a,#fee140)}
+.stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.5rem;font-weight:600}
+.stat-value{font-size:1.9rem;font-weight:800;line-height:1;color:var(--text)}
+.stat-change{font-size:.75rem;margin-top:.35rem;color:var(--text2)}
+.stat-change.up{color:var(--green)}.stat-change.down{color:var(--red)}
 
-.paper{background:#fff;margin-bottom:10px;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
-@media(prefers-color-scheme:dark){.paper{background:#1e293b}}
-.paper-head{padding:1rem 1.5rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem}
-.paper-head:hover{background:#f8f9fa}
-@media(prefers-color-scheme:dark){.paper-head:hover{background:#273449}}
-.paper-title{font-weight:600;font-size:1rem;flex:1;line-height:1.4}
-.paper-meta{font-size:0.85rem;color:#666;margin-top:4px}
-@media(prefers-color-scheme:dark){.paper-meta{color:#94a3b8}}
-.paper-cites{font-weight:bold;color:#3b82f6;font-size:1.1rem;padding:0.5rem 1rem;background:#f0f7ff;border-radius:20px}
-@media(prefers-color-scheme:dark){.paper-cites{background:#1e3a5f;color:#60a5fa}}
-.arrow{color:#999;font-size:0.8rem;transition:transform 0.2s}
+/* ── Section ── */
+.section{background:var(--surface);border-radius:var(--r);padding:1.5rem;box-shadow:var(--shm);border:1px solid var(--border)}
+.section-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
+.chart-wrap{height:220px}
+
+/* ── Controls ── */
+.controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.search-box{flex:1;min-width:180px;padding:.45rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;outline:none;transition:border-color .2s}
+.search-box:focus{border-color:var(--blue)}
+.sort-btn{padding:.4rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text2);font-size:.78rem;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:500}
+.sort-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sort-btn:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.sort-label{font-size:.75rem;color:var(--text2);margin-right:-.1rem}
+
+/* ── Paper List ── */
+.paper{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s,border-color .2s}
+.paper:hover{box-shadow:var(--shm);border-color:rgba(59,130,246,.3)}
+.paper:last-child{margin-bottom:0}
+.paper-head{padding:.8rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.65rem;background:var(--surface2);transition:background .15s}
+.paper-head:hover{background:var(--bg)}
+.rank{font-size:.8rem;font-weight:700;color:var(--text2);width:1.6rem;text-align:center;flex-shrink:0}
+.rank.medal{font-size:1rem}
+.paper-info{flex:1;min-width:0}
+.paper-title{font-weight:600;font-size:.88rem;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.paper-meta{font-size:.72rem;color:var(--text2);margin-top:2px;display:flex;gap:.5rem}
+.paper-stats{display:flex;align-items:center;gap:.45rem;flex-shrink:0}
+.cites-num{font-weight:800;color:var(--blue);font-size:1.05rem;min-width:2.5rem;text-align:right}
+.badge{font-size:.68rem;padding:.12rem .4rem;border-radius:999px;font-weight:700}
+.badge.up{background:rgba(16,185,129,.15);color:var(--green)}
+.badge.down{background:rgba(239,68,68,.1);color:var(--red)}
+.badge.flat{background:var(--border);color:var(--text2)}
+.arrow{color:var(--text2);font-size:.65rem;transition:transform .25s;flex-shrink:0}
 .paper.open .arrow{transform:rotate(180deg)}
 
-.paper-chart{max-height:0;overflow:hidden;transition:max-height 0.3s ease}
+/* ── Paper Chart ── */
+.paper-chart{max-height:0;overflow:hidden;transition:max-height .35s ease}
 .paper.open .paper-chart{max-height:300px}
-.chart-container{background:#fafafa;padding:1rem;height:250px}
-@media(prefers-color-scheme:dark){.chart-container{background:#0f172a}}
+.paper-chart-inner{padding:.75rem 1rem;height:260px;background:var(--surface);border-top:1px solid var(--border)}
 
-.loading{text-align:center;padding:3rem;color:#666}
-.error{text-align:center;padding:3rem;color:red}
+/* ── Footer ── */
+.footer{text-align:center;padding:.75rem;color:var(--text2);font-size:.75rem}
+
+/* ── Loading / Error ── */
+.loading{text-align:center;padding:3rem;color:var(--text2);font-size:1rem}
+.error-msg{text-align:center;padding:3rem;color:var(--red);font-size:.95rem}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>📊 Citation Tracker</h1>
-  
-  <div class="stats-container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 Citation Tracker</h1>
+    <p id="lastUpdated">Loading…</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
     <div class="stat-card total">
       <div class="stat-label">Total Citations</div>
-      <div class="stat-value" id="totalCites">-</div>
+      <div class="stat-value" id="totalCites">—</div>
       <div class="stat-change" id="totalChange"></div>
     </div>
     <div class="stat-card today">
-      <div class="stat-label">Today\'s New</div>
-      <div class="stat-value" id="todayCites">-</div>
+      <div class="stat-label">Today's New</div>
+      <div class="stat-value" id="todayCites">—</div>
       <div class="stat-change" id="todayChange"></div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card count">
       <div class="stat-label">Papers Tracked</div>
-      <div class="stat-value" id="paperCount">-</div>
+      <div class="stat-value" id="paperCount">—</div>
+      <div class="stat-change" id="daysTracked"></div>
+    </div>
+    <div class="stat-card avg">
+      <div class="stat-label">7-Day Avg Growth</div>
+      <div class="stat-value" id="avgGrowth">—</div>
+      <div class="stat-change" id="avgAll"></div>
     </div>
   </div>
-  
-  <div class="trend-section">
-    <div class="trend-title">📈 Total Citations Trend (Last 30 Days)</div>
-    <div class="trend-chart"><canvas id="overallTrend"></canvas></div>
+
+  <!-- Overall trend -->
+  <div class="section">
+    <div class="section-title">📈 Total Citations — All-Time Trend</div>
+    <div class="chart-wrap"><canvas id="overallChart"></canvas></div>
   </div>
-  
-  <div id="list"><div class="loading">Loading...</div></div>
+
+  <!-- Paper list -->
+  <div class="section" id="papersSec">
+    <div class="section-title">📄 Papers</div>
+    <div class="controls">
+      <input class="search-box" id="searchInput" type="text" placeholder="🔍 Search papers…" oninput="renderList()">
+      <span class="sort-label">Sort:</span>
+      <button class="sort-btn active" id="btn-cites" onclick="setSort('cites')">Citations</button>
+      <button class="sort-btn" id="btn-growth" onclick="setSort('growth')">Growth</button>
+      <button class="sort-btn" id="btn-year" onclick="setSort('year')">Year</button>
+    </div>
+    <div id="list"><div class="loading">⏳ Loading data…</div></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    Data sourced from Google Scholar · Auto-updated via GitHub Actions
+    &nbsp;·&nbsp;
+    <a href="citations.json">⬇ Download JSON</a>
+  </div>
+
 </div>
-
 <script>
-var CSV_URL = 'citations.csv';
-var charts = {};
-var papersData = [];
-var overallChart = null;
+var DATA_URL = 'citations.json';
+/* state */
+var papersData = [];      /* [{title,year,history:[{date,cites},...]}] */
+var latestCites = {};     /* title -> latest citation count */
+var prevCites   = {};     /* title -> previous day count */
+var allDates    = [];     /* sorted date strings */
+var dailyTotals = [];     /* total citations per date (aligned with allDates) */
+var charts      = {};     /* globalIdx -> Chart instance */
+var currentSort = 'cites';
 
-function parseCSV(csv) {
-  var lines = csv.trim().split('\n');
-  var result = [];
-  for (var i = 1; i < lines.length; i++) {
-    var vals = [], inQuotes = false, cur = '';
-    for (var j = 0; j < lines[i].length; j++) {
-      var ch = lines[i][j];
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === ',' && !inQuotes) { vals.push(cur.trim()); cur = ''; }
-      else { cur += ch; }
-    }
-    vals.push(cur.trim());
-    if (vals[0]) result.push({date: vals[0], title: vals[1] || '', citations: parseInt(vals[2]) || 0, year: vals[3] || ''});
-  }
-  return result;
+/* ── helpers ── */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function isDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches}
+
+function chartColors(){
+  var d=isDark();
+  return {grid:d?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)', tick:d?'#94a3b8':'#64748b'};
 }
 
-fetch(CSV_URL).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-  .then(function(csv) {
-    var data = parseCSV(csv);
-    
-    var papers = {};
-    data.forEach(function(d) {
-      if (!papers[d.title]) papers[d.title] = {title: d.title, year: d.year, history: []};
-      papers[d.title].history.push({date: d.date, citations: d.citations});
+/* For a given date, return the most recent known citation count for a paper */
+function getCountAt(hist,date){
+  /* hist is sorted ascending by date */
+  var c=0;
+  for(var i=0;i<hist.length;i++){
+    if(hist[i].date<=date) c=hist[i].cites;
+    else break;
+  }
+  return c;
+}
+
+/* ── sort / filter ── */
+function setSort(type){
+  currentSort=type;
+  document.querySelectorAll('.sort-btn').forEach(function(b){b.classList.remove('active')});
+  document.getElementById('btn-'+type).classList.add('active');
+  renderList();
+}
+
+function getSorted(){
+  var q=(document.getElementById('searchInput').value||'').toLowerCase();
+  var list=papersData.filter(function(p){return !q||p.title.toLowerCase().includes(q)});
+  if(currentSort==='cites')
+    list.sort(function(a,b){return (latestCites[b.title]||0)-(latestCites[a.title]||0)});
+  else if(currentSort==='growth')
+    list.sort(function(a,b){
+      return ((latestCites[b.title]||0)-(prevCites[b.title]||0))-((latestCites[a.title]||0)-(prevCites[a.title]||0))
     });
-    papersData = Object.values(papers);
-    
-    var latest = {};
-    data.forEach(function(d) { latest[d.title] = d.citations; });
-    
-    papersData.sort(function(a, b) { return (latest[b.title] || 0) - (latest[a.title] || 0); });
-    
-    var dates = [...new Set(data.map(d => d.date))].sort();
-    var dailyTotals = dates.map(date => data.filter(d => d.date === date).reduce((sum, d) => sum + d.citations, 0));
-    var dailyNew = dailyTotals.map((total, i) => i === 0 ? 0 : Math.max(0, total - dailyTotals[i-1]));
-    
-    var totalCites = dailyTotals[dailyTotals.length - 1];
-    var prevTotal = dailyTotals[dailyTotals.length - 2] || totalCites;
-    var todayNew = dailyNew[dailyNew.length - 1];
-    var yesterdayNew = dailyNew[dailyNew.length - 2] || 0;
-    
-    document.getElementById('totalCites').textContent = totalCites.toLocaleString();
-    document.getElementById('todayCites').textContent = todayNew.toLocaleString();
-    document.getElementById('paperCount').textContent = papersData.length;
-    
-    var totalDiff = totalCites - prevTotal;
-    var totalChangeEl = document.getElementById('totalChange');
-    totalChangeEl.innerHTML = (totalDiff >= 0 ? '+' : '') + totalDiff + ' vs yesterday';
-    totalChangeEl.className = 'stat-change ' + (totalDiff >= 0 ? 'up' : 'down');
-    
-    var todayDiff = todayNew - yesterdayNew;
-    var todayChangeEl = document.getElementById('todayChange');
-    todayChangeEl.innerHTML = (todayDiff >= 0 ? '+' : '') + todayDiff + ' vs yesterday';
-    todayChangeEl.className = 'stat-change ' + (todayDiff >= 0 ? 'up' : 'down');
-    
-    // 总体趋势图 - 显示总引用数，Y轴自适应
-    var ctx = document.getElementById('overallTrend').getContext('2d');
-    overallChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: dates.slice(-30).map(d => d.slice(5)),
-        datasets: [{
-          data: dailyTotals.slice(-30),
-          borderColor: '#667eea',
-          backgroundColor: 'rgba(102, 126, 234, 0.1)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          pointHoverRadius: 5
+  else
+    list.sort(function(a,b){return (parseInt(b.year)||0)-(parseInt(a.year)||0)});
+  return list;
+}
+
+/* ── render paper list ── */
+function renderList(){
+  var papers=getSorted();
+  if(!papers.length){
+    document.getElementById('list').innerHTML='<div class="loading">No papers found.</div>';
+    return;
+  }
+  var medals=['🥇','🥈','🥉'];
+  var html='';
+  papers.forEach(function(p,idx){
+    var gi=papersData.indexOf(p);
+    var c=latestCites[p.title]||0;
+    var prev=prevCites[p.title]||0;
+    var diff=c-prev;
+    var cls=diff>0?'up':diff<0?'down':'flat';
+    var txt=diff>0?'+'+diff:diff<0?String(diff):'—';
+    var rankHtml=idx<3
+      ?'<span class="rank medal">'+medals[idx]+'</span>'
+      :'<span class="rank">'+(idx+1)+'</span>';
+    html+='<div class="paper" id="paper-'+gi+'">'
+      +'<div class="paper-head" onclick="toggle('+gi+')">'
+      +rankHtml
+      +'<div class="paper-info">'
+        +'<div class="paper-title" title="'+esc(p.title)+'">'+esc(p.title)+'</div>'
+        +'<div class="paper-meta">'
+          +(p.year?'<span>📅 '+esc(p.year)+'</span>':'')
+          +'<span>📊 '+p.history.length+' days</span>'
+        +'</div>'
+      +'</div>'
+      +'<div class="paper-stats">'
+        +'<span class="cites-num">'+c.toLocaleString()+'</span>'
+        +'<span class="badge '+cls+'">'+txt+'</span>'
+      +'</div>'
+      +'<span class="arrow">▼</span>'
+      +'</div>'
+      +'<div class="paper-chart"><div class="paper-chart-inner"><canvas id="chart-'+gi+'"></canvas></div></div>'
+      +'</div>';
+  });
+  document.getElementById('list').innerHTML=html;
+}
+
+/* ── expand / collapse ── */
+function toggle(gi){
+  var el=document.getElementById('paper-'+gi);
+  if(!el) return;
+  var wasOpen=el.classList.contains('open');
+  document.querySelectorAll('.paper.open').forEach(function(x){x.classList.remove('open')});
+  if(wasOpen) return;
+  el.classList.add('open');
+  if(!charts[gi]){
+    var p=papersData[gi];
+    var col=chartColors();
+    charts[gi]=new Chart(document.getElementById('chart-'+gi),{
+      type:'line',
+      data:{
+        labels:p.history.map(function(h){return h.date.slice(5)}),
+        datasets:[{
+          data:p.history.map(function(h){return h.cites}),
+          borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',
+          fill:true,tension:.35,borderWidth:2,
+          pointRadius:p.history.length>45?0:3,pointHoverRadius:5
         }]
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
-          y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{title:function(t){return p.history[t[0].dataIndex].date}}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:10}},
+          y:{grid:{color:col.grid},ticks:{color:col.tick}}
         }
       }
     });
-    
-    var html = '';
-    papersData.forEach(function(p, i) {
-      var cites = latest[p.title] || 0;
-      html += '<div class="paper" id="paper-' + i + '">' +
-        '<div class="paper-head" onclick="toggle(' + i + ')">' +
-          '<div><div class="paper-title">' + p.title + '</div>' +
-          '<div class="paper-meta">' + (p.year || '') + '</div></div>' +
-          '<div class="paper-cites">' + cites + '</div>' +
-          '<div class="arrow">▼</div>' +
-        '</div>' +
-        '<div class="paper-chart"><div class="chart-container"><canvas id="chart-' + i + '"></canvas></div></div>' +
-      '</div>';
-    });
-    document.getElementById('list').innerHTML = html;
-  })
-  .catch(function(e) { document.getElementById('list').innerHTML = '<div class="error">❌ Error: ' + e.message + '</div>'; });
-
-function toggle(i) {
-  var paper = document.getElementById('paper-' + i);
-  var isOpen = paper.classList.contains('open');
-  document.querySelectorAll('.paper').forEach(function(el) { el.classList.remove('open'); });
-  
-  if (!isOpen) {
-    paper.classList.add('open');
-    if (!charts[i]) {
-      var p = papersData[i];
-      p.history.sort(function(a, b) { return a.date.localeCompare(b.date); });
-      
-      charts[i] = new Chart(document.getElementById('chart-' + i), {
-        type: 'line',
-        data: {
-          labels: p.history.map(function(h) { return h.date.slice(5); }),
-          datasets: [{
-            data: p.history.map(function(h) { return h.citations; }),
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 4,
-            pointHoverRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false } },
-            y: { grid: { color: 'rgba(0,0,0,0.05)' } }
-          }
-        }
-      });
-    }
   }
 }
+
+/* ── main data load ── */
+fetch(DATA_URL).then(function(r){
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}).then(function(json){
+
+  /* parse JSON into papersData */
+  papersData=[];
+  Object.keys(json).forEach(function(title){
+    var entry=json[title];
+    var histObj=entry.history||{};
+    var hist=Object.keys(histObj).sort().map(function(d){return {date:d,cites:histObj[d]}});
+    papersData.push({title:title,year:entry.year||'',history:hist});
+  });
+
+  /* collect all unique dates */
+  var dateSet={};
+  papersData.forEach(function(p){p.history.forEach(function(h){dateSet[h.date]=1})});
+  allDates=Object.keys(dateSet).sort();
+
+  /* latest & previous citation counts per paper */
+  papersData.forEach(function(p){
+    var h=p.history;
+    latestCites[p.title]=h.length?h[h.length-1].cites:0;
+    prevCites[p.title]=h.length>1?h[h.length-2].cites:latestCites[p.title];
+  });
+
+  /* daily totals (sum of most-recent known count for each paper on each date) */
+  dailyTotals=allDates.map(function(date){
+    return papersData.reduce(function(sum,p){return sum+getCountAt(p.history,date)},0);
+  });
+
+  /* ── stat cards ── */
+  var total=dailyTotals[dailyTotals.length-1]||0;
+  var prevTotal=dailyTotals.length>1?dailyTotals[dailyTotals.length-2]:total;
+  var todayNew=Math.max(0,total-prevTotal);
+  var twoDaysTotal=dailyTotals.length>2?dailyTotals[dailyTotals.length-3]:prevTotal;
+  var yestNew=Math.max(0,prevTotal-twoDaysTotal);
+
+  /* 7-day avg growth */
+  var growths=[];
+  for(var i=1;i<dailyTotals.length;i++){var g=dailyTotals[i]-dailyTotals[i-1];if(g>=0)growths.push(g);}
+  var avg7=growths.length?growths.slice(-7).reduce(function(a,v){return a+v},0)/Math.min(7,growths.slice(-7).length):0;
+  var avgAll=growths.length?growths.reduce(function(a,v){return a+v},0)/growths.length:0;
+
+  function setChange(id,diff){
+    var el=document.getElementById(id);
+    el.textContent=(diff>=0?'+':'')+diff+' vs yesterday';
+    el.className='stat-change '+(diff>0?'up':diff<0?'down':'');
+  }
+
+  document.getElementById('totalCites').textContent=total.toLocaleString();
+  document.getElementById('todayCites').textContent=todayNew.toLocaleString();
+  document.getElementById('paperCount').textContent=papersData.length;
+  document.getElementById('avgGrowth').textContent=avg7.toFixed(1);
+  document.getElementById('avgAll').textContent='all-time avg: '+avgAll.toFixed(1)+'/day';
+  document.getElementById('daysTracked').textContent=allDates.length+' days tracked';
+  setChange('totalChange',total-prevTotal);
+  setChange('todayChange',todayNew-yestNew);
+
+  /* last updated */
+  document.getElementById('lastUpdated').textContent=
+    'Last updated: '+(allDates[allDates.length-1]||'—')+' · '+papersData.length+' papers';
+
+  /* ── overall trend chart ── */
+  var col=chartColors();
+  new Chart(document.getElementById('overallChart'),{
+    type:'line',
+    data:{
+      labels:allDates.map(function(d){return d.slice(5)}),
+      datasets:[{
+        data:dailyTotals,
+        borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.1)',
+        fill:true,tension:.35,borderWidth:2,
+        pointRadius:allDates.length>60?0:3,pointHoverRadius:5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{title:function(t){return allDates[t[0].dataIndex]}}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:14}},
+        y:{grid:{color:col.grid},ticks:{color:col.tick}}
+      }
+    }
+  });
+
+  renderList();
+
+}).catch(function(e){
+  document.getElementById('list').innerHTML='<div class="error-msg">❌ '+esc(e.message)+'</div>';
+});
 </script>
 </body>
 </html>

@@ -2,7 +2,8 @@ name: Daily Citation Update
 
 on:
   schedule:
-    - cron: '10 0 * * *'  # 每天北京时间 8:10 
+    # 每天 UTC 22:00 = 新加坡时间 06:00，留有充足缓冲保证 8-9 点前完成
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 permissions:
@@ -37,8 +38,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
-          git add citations.csv
-          git diff --staged --quiet || git commit -m "Update citations $(date +'%Y-%m-%d')"
+          git add citations.json
+          # 如果 CSV 文件仍存在但不再更新，可以顺便 stage 一下（幂等）
+          git diff --staged --quiet || git commit -m "Update citations $(TZ='Asia/Singapore' date +'%Y-%m-%d')"
           git rebase origin/main
           git push origin main
 
