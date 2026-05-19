@@ -28,6 +28,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 lxml
 
+      - name: Pull latest before scraping
+        run: git pull --rebase origin main
+
       - name: Run scraper
         env:
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
@@ -37,12 +40,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
           git add citations.json
-          # 如果 CSV 文件仍存在但不再更新，可以顺便 stage 一下（幂等）
-          git diff --staged --quiet || git commit -m "Update citations $(TZ='Asia/Singapore' date +'%Y-%m-%d')"
-          git rebase origin/main
-          git push origin main
+          git diff --staged --quiet || git commit -m "Update citations $(TZ='Asia/Shanghai' date +'%Y-%m-%d')"
+          git push origin main || (git pull --rebase origin main && git push origin main)
 
   deploy:
     needs: update
