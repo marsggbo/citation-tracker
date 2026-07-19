@@ -69,46 +69,85 @@ def save_data(data):
 
 # ─── 爬取 ──────────────────────────────────────────────────────────────────────
 
-def scrape(author_id):
-    """使用 ScraperAPI 抓取 Google Scholar 数据并解析。"""
-    if not SCRAPER_API_KEY:
-        print("❌ SCRAPER_API_KEY 环境变量未设置")
-        return None
+PAGE_SIZE = 100          # Google Scholar 单页最多 100 篇
+MAX_PAGES = 10           # 安全上限，最多抓 1000 篇
 
-    print("🔄 开始抓取...")
+
+def _fetch_page(author_id, cstart):
+    """抓取 Google Scholar 作者页的一页（从 cstart 开始）。"""
     target_url = (
         f"https://scholar.google.com/citations"
         f"?user={author_id}&hl=en&view_op=list_works&sortby=citation"
+        f"&cstart={cstart}&pagesize={PAGE_SIZE}"
     )
     api_url = (
         f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}"
         f"&url={urllib.parse.quote(target_url)}"
     )
+    req = urllib.request.Request(api_url, headers={"User-Agent": "Mozilla/5.0"})
+    resp = urllib.request.urlopen(req, timeout=120)
+    return resp.read().decode("utf-8", errors="ignore")
 
-    try:
-        req = urllib.request.Request(api_url, headers={"User-Agent": "Mozilla/5.0"})
-        print("  请求中（10-30 秒）...")
-        resp = urllib.request.urlopen(req, timeout=120)
-        html = resp.read().decode("utf-8", errors="ignore")
-        print(f"  收到 {len(html)} bytes")
-    except Exception as e:
-        print(f"❌ 请求失败：{e}")
+
+def scrape(author_id):
+    """使用 ScraperAPI 抓取 Google Scholar 数据并解析（自动翻页，抓取全部论文）。"""
+    if not SCRAPER_API_KEY:
+        print("❌ SCRAPER_API_KEY 环境变量未设置")
         return None
 
-    # 解析 HTML
-    titles = re.findall(r'class="gsc_a_at[^"]*"[^>]*>([^<]+)</a>', html)
-    cites  = re.findall(r'class="gsc_a_ac[^"]*"[^>]*>([^<]+)</a>', html)
-    years  = re.findall(r'class="gsc_a_h[^"]*"[^>]*>([^<]+)</span>', html)
-
-    print(f"  解析到 {len(titles)} 篇论文")
-
+    print("🔄 开始抓取（自动翻页）...")
     papers = []
-    for i, title in enumerate(titles):
-        c = int(cites[i]) if i < len(cites) and cites[i].isdigit() else 0
-        y = years[i] if i < len(years) else ""
-        papers.append({"title": title.strip(), "citations": c, "year": y})
+    seen_titles = set()
 
-    return papers
+    for page in range(MAX_PAGES):
+        cstart = page * PAGE_SIZE
+        try:
+            print(f"  第 {page + 1} 页（cstart={cstart}）请求中...")
+            html = _fetch_page(author_id, cstart)
+            print(f"    收到 {len(html)} bytes")
+        except Exception as e:
+            print(f"❌ 第 {page + 1} 页请求失败：{e}")
+            break  # 已抓到的部分仍会返回
+
+        titles = re.findall(r'class="gsc_a_at[^"]*"[^>]*>([^<]+)</a>', html)
+        cites  = re.findall(r'class="gsc_a_ac[^"]*"[^>]*>([^<]+)</a>', html)
+        years  = re.findall(r'class="gsc_a_h[^"]*"[^>]*>([^<]+)</span>', html)
+
+        if not titles:
+            print("    本页无论文，停止翻页")
+            break
+
+        page_new = 0
+        for i, title in enumerate(titles):
+            t = title.strip()
+            if t in seen_titles:      # 防止重复页导致重复计数
+                continue
+            seen_titles.add(t)
+            c = int(cites[i]) if i < len(cites) and cites[i].isdigit() else 0
+            y = years[i] if i < len(years) else ""
+            papers.append({"title": t, "citations": c, "year": y})
+            page_new += 1
+
+        print(f"    本页新增 {page_new} 篇（累计 {len(papers)} 篇）")
+
+        if len(titles) < PAGE_SIZE:   # 不满一页 = 已到最后一页
+            break
+
+    print(f"  共解析到 {len(papers)} 篇论文")
+    return papers if papers else None
+
+
+def detect_new_papers(data, papers, today):
+    """对比历史数据，找出本次首次出现的新论文并打印。"""
+    existing = set(data.keys())
+    new_titles = [p["title"] for p in papers if p["title"] not in existing]
+    if new_titles:
+        print(f"🆕 发现 {len(new_titles)} 篇新论文（{today}）:")
+        for t in new_titles:
+            print(f"   + {t}")
+    else:
+        print("✓ 本次无新论文")
+    return new_titles
 
 
 # ─── 主流程 ────────────────────────────────────────────────────────────────────
@@ -133,11 +172,19 @@ def main():
         print("⚠️ 抓取失败，退出")
         sys.exit(0)
 
+    # 检测新增论文（在合并前对比历史）
+    detect_new_papers(data, papers, today)
+
     # 合并到数据字典
     for p in papers:
         title = p["title"]
         if title not in data:
-            data[title] = {"year": p["year"], "history": {}}
+            # 首次出现的论文：记录 first_seen，供前端标记 NEW
+            data[title] = {"year": p["year"], "first_seen": today, "history": {}}
+        if not data[title].get("first_seen"):
+            # 为历史遗留数据补齐 first_seen（取最早的历史日期）
+            hist_dates = sorted(data[title].get("history", {}).keys())
+            data[title]["first_seen"] = hist_dates[0] if hist_dates else today
         if not data[title].get("year") and p["year"]:
             data[title]["year"] = p["year"]
         data[title]["history"][today] = p["citations"]

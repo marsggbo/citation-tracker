@@ -7,89 +7,103 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{
-  --bg:#f0f2f5;--surface:#fff;--surface2:#f8fafc;
-  --text:#1e293b;--text2:#64748b;--border:#e2e8f0;
-  --blue:#3b82f6;--blue2:rgba(59,130,246,.12);
-  --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
-  --r:12px;
-  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
-  --shm:0 4px 12px rgba(0,0,0,.08);
-  --shl:0 10px 30px rgba(0,0,0,.1);
+  --bg:#f5f6f8;--surface:#ffffff;--surface2:#f7f9fc;
+  --text:#0f172a;--text2:#64748b;--text3:#94a3b8;--border:#e6e9ef;
+  --accent:#6366f1;--accent2:#818cf8;--accentSoft:rgba(99,102,241,.10);
+  --green:#10b981;--red:#ef4444;--amber:#f59e0b;
+  --r:14px;
+  --sh:0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.06);
+  --shm:0 2px 8px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.05);
 }
 @media(prefers-color-scheme:dark){:root{
-  --bg:#0f172a;--surface:#1e293b;--surface2:#0f172a;
-  --text:#f1f5f9;--text2:#94a3b8;--border:#334155;
-  --blue2:rgba(59,130,246,.18);
-  --sh:0 1px 3px rgba(0,0,0,.3);--shm:0 4px 12px rgba(0,0,0,.3);--shl:0 10px 30px rgba(0,0,0,.3);
+  --bg:#0a0f1e;--surface:#111a2e;--surface2:#0d1526;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--border:#243149;
+  --accent:#818cf8;--accent2:#a5b4fc;--accentSoft:rgba(129,140,248,.14);
+  --sh:0 1px 3px rgba(0,0,0,.4);--shm:0 4px 20px rgba(0,0,0,.45);
 }}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:1.25rem;min-height:100vh}
-a{color:var(--blue);text-decoration:none}
-.container{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:1.25rem}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif;background:var(--bg);color:var(--text);padding:1.25rem;min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.container{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:1.1rem}
 
 /* ── Header ── */
-.header{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:var(--r);padding:2rem 2rem 1.5rem;color:#fff;box-shadow:var(--shl);text-align:center}
-.header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.5px}
-.header p{margin-top:.4rem;opacity:.85;font-size:.875rem}
+.header{position:relative;overflow:hidden;background:linear-gradient(135deg,#6366f1 0%,#7c73f0 45%,#8b5cf6 100%);border-radius:18px;padding:2.1rem 2rem 1.7rem;color:#fff;box-shadow:0 12px 34px rgba(99,102,241,.32)}
+.header::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 85% -10%,rgba(255,255,255,.25),transparent 42%),radial-gradient(circle at 12% 120%,rgba(255,255,255,.14),transparent 46%);pointer-events:none}
+.header h1{font-size:1.85rem;font-weight:800;letter-spacing:-.6px;display:flex;align-items:center;gap:.55rem;position:relative}
+.header p{margin-top:.5rem;opacity:.9;font-size:.85rem;position:relative}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 0 rgba(74,222,128,.7);animation:pulse 2s infinite;margin-right:.35rem}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}70%{box-shadow:0 0 0 7px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
 
 /* ── Stat Cards ── */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem}
-.stat-card{background:var(--surface);border-radius:var(--r);padding:1.25rem;box-shadow:var(--shm);border:1px solid var(--border);position:relative;overflow:hidden}
-.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
-.stat-card.total::after{background:linear-gradient(90deg,#f093fb,#f5576c)}
-.stat-card.today::after{background:linear-gradient(90deg,#4facfe,#00f2fe)}
-.stat-card.count::after{background:linear-gradient(90deg,#43e97b,#38f9d7)}
-.stat-card.avg::after{background:linear-gradient(90deg,#fa709a,#fee140)}
-.stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.5rem;font-weight:600}
-.stat-value{font-size:1.9rem;font-weight:800;line-height:1;color:var(--text)}
-.stat-change{font-size:.75rem;margin-top:.35rem;color:var(--text2)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.9rem}
+.stat-card{background:var(--surface);border-radius:var(--r);padding:1.15rem 1.2rem;box-shadow:var(--sh);border:1px solid var(--border);display:flex;flex-direction:column;gap:.15rem;transition:transform .18s,box-shadow .18s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shm)}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem}
+.stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);font-weight:600}
+.stat-ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:.85rem}
+.ico-total{background:rgba(99,102,241,.14)}
+.ico-today{background:rgba(16,185,129,.14)}
+.ico-count{background:rgba(245,158,11,.14)}
+.ico-avg{background:rgba(236,72,153,.14)}
+.stat-value{font-size:1.85rem;font-weight:800;line-height:1.05;color:var(--text);letter-spacing:-.5px}
+.stat-change{font-size:.74rem;margin-top:.3rem;color:var(--text2);font-weight:500}
 .stat-change.up{color:var(--green)}.stat-change.down{color:var(--red)}
 
 /* ── Section ── */
-.section{background:var(--surface);border-radius:var(--r);padding:1.5rem;box-shadow:var(--shm);border:1px solid var(--border)}
-.section-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
-.chart-wrap{height:220px}
+.section{background:var(--surface);border-radius:var(--r);padding:1.4rem 1.5rem;box-shadow:var(--sh);border:1px solid var(--border)}
+.section-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:.45rem}
+.chart-wrap{height:230px}
 
 /* ── Controls ── */
-.controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
-.search-box{flex:1;min-width:180px;padding:.45rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:.85rem;outline:none;transition:border-color .2s}
-.search-box:focus{border-color:var(--blue)}
-.sort-btn{padding:.4rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text2);font-size:.78rem;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:500}
-.sort-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
-.sort-btn:hover:not(.active){border-color:var(--blue);color:var(--blue)}
-.sort-label{font-size:.75rem;color:var(--text2);margin-right:-.1rem}
+.controls{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.search-box{flex:1;min-width:180px;padding:.5rem .8rem;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text);font-size:.85rem;outline:none;transition:border-color .2s,box-shadow .2s}
+.search-box:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentSoft)}
+.sort-btn{padding:.42rem .8rem;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--text2);font-size:.78rem;cursor:pointer;transition:all .18s;white-space:nowrap;font-weight:600}
+.sort-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sort-btn:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+.sort-label{font-size:.75rem;color:var(--text3);margin-right:-.1rem}
 
 /* ── Paper List ── */
-.paper{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.65rem;transition:box-shadow .2s,border-color .2s}
-.paper:hover{box-shadow:var(--shm);border-color:rgba(59,130,246,.3)}
+.paper{border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:.6rem;transition:box-shadow .2s,border-color .2s}
+.paper:hover{box-shadow:var(--sh);border-color:var(--accent2)}
 .paper:last-child{margin-bottom:0}
-.paper-head{padding:.8rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.65rem;background:var(--surface2);transition:background .15s}
-.paper-head:hover{background:var(--bg)}
-.rank{font-size:.8rem;font-weight:700;color:var(--text2);width:1.6rem;text-align:center;flex-shrink:0}
-.rank.medal{font-size:1rem}
+.paper-head{padding:.75rem .95rem;cursor:pointer;display:flex;align-items:center;gap:.6rem;background:var(--surface2);transition:background .15s}
+.paper-head:hover{background:var(--accentSoft)}
+.rank{font-size:.8rem;font-weight:700;color:var(--text3);width:1.5rem;text-align:center;flex-shrink:0}
+.rank.medal{font-size:1.05rem}
 .paper-info{flex:1;min-width:0}
-.paper-title{font-weight:600;font-size:.88rem;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-.paper-meta{font-size:.72rem;color:var(--text2);margin-top:2px;display:flex;gap:.5rem}
+.paper-title{font-weight:600;font-size:.88rem;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);display:flex;align-items:center;gap:.4rem}
+.paper-meta{font-size:.72rem;color:var(--text2);margin-top:2px;display:flex;gap:.7rem;flex-wrap:wrap}
+.tag-new{font-size:.6rem;font-weight:800;letter-spacing:.04em;padding:.1rem .38rem;border-radius:5px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;flex-shrink:0;text-transform:uppercase}
 .paper-stats{display:flex;align-items:center;gap:.45rem;flex-shrink:0}
-.cites-num{font-weight:800;color:var(--blue);font-size:1.05rem;min-width:2.5rem;text-align:right}
-.badge{font-size:.68rem;padding:.12rem .4rem;border-radius:999px;font-weight:700}
+.cites-num{font-weight:800;color:var(--accent);font-size:1.05rem;min-width:2.6rem;text-align:right}
+.badge{font-size:.68rem;padding:.13rem .42rem;border-radius:999px;font-weight:700;min-width:2.3rem;text-align:center}
 .badge.up{background:rgba(16,185,129,.15);color:var(--green)}
-.badge.down{background:rgba(239,68,68,.1);color:var(--red)}
+.badge.down{background:rgba(239,68,68,.12);color:var(--red)}
 .badge.flat{background:var(--border);color:var(--text2)}
-.arrow{color:var(--text2);font-size:.65rem;transition:transform .25s;flex-shrink:0}
+.arrow{color:var(--text3);font-size:.65rem;transition:transform .25s;flex-shrink:0}
 .paper.open .arrow{transform:rotate(180deg)}
 
 /* ── Paper Chart ── */
 .paper-chart{max-height:0;overflow:hidden;transition:max-height .35s ease}
-.paper.open .paper-chart{max-height:300px}
-.paper-chart-inner{padding:.75rem 1rem;height:260px;background:var(--surface);border-top:1px solid var(--border)}
+.paper.open .paper-chart{max-height:320px}
+.paper-chart-inner{padding:.85rem 1rem;height:270px;background:var(--surface);border-top:1px solid var(--border)}
 
 /* ── Footer ── */
-.footer{text-align:center;padding:.75rem;color:var(--text2);font-size:.75rem}
+.footer{text-align:center;padding:.6rem;color:var(--text3);font-size:.75rem;line-height:1.7}
 
 /* ── Loading / Error ── */
 .loading{text-align:center;padding:3rem;color:var(--text2);font-size:1rem}
 .error-msg{text-align:center;padding:3rem;color:var(--red);font-size:.95rem}
+
+@media(max-width:560px){
+  body{padding:.8rem}
+  .header{padding:1.6rem 1.3rem 1.3rem}
+  .header h1{font-size:1.5rem}
+  .stat-value{font-size:1.55rem}
+  .paper-meta span.hide-sm{display:none}
+}
 </style>
 </head>
 <body>
@@ -98,28 +112,28 @@ a{color:var(--blue);text-decoration:none}
   <!-- Header -->
   <div class="header">
     <h1>📊 Citation Tracker</h1>
-    <p id="lastUpdated">Loading…</p>
+    <p id="lastUpdated"><span class="pulse"></span>Loading…</p>
   </div>
 
   <!-- Stats -->
   <div class="stats">
-    <div class="stat-card total">
-      <div class="stat-label">Total Citations</div>
+    <div class="stat-card">
+      <div class="stat-top"><span class="stat-label">Total Citations</span><span class="stat-ico ico-total">📚</span></div>
       <div class="stat-value" id="totalCites">—</div>
       <div class="stat-change" id="totalChange"></div>
     </div>
-    <div class="stat-card today">
-      <div class="stat-label">Today's New</div>
+    <div class="stat-card">
+      <div class="stat-top"><span class="stat-label">Today's New</span><span class="stat-ico ico-today">🔥</span></div>
       <div class="stat-value" id="todayCites">—</div>
       <div class="stat-change" id="todayChange"></div>
     </div>
-    <div class="stat-card count">
-      <div class="stat-label">Papers Tracked</div>
+    <div class="stat-card">
+      <div class="stat-top"><span class="stat-label">Papers Tracked</span><span class="stat-ico ico-count">📄</span></div>
       <div class="stat-value" id="paperCount">—</div>
       <div class="stat-change" id="daysTracked"></div>
     </div>
-    <div class="stat-card avg">
-      <div class="stat-label">7-Day Avg Growth</div>
+    <div class="stat-card">
+      <div class="stat-top"><span class="stat-label">7-Day Avg Growth</span><span class="stat-ico ico-avg">📈</span></div>
       <div class="stat-value" id="avgGrowth">—</div>
       <div class="stat-change" id="avgAll"></div>
     </div>
@@ -140,13 +154,14 @@ a{color:var(--blue);text-decoration:none}
       <button class="sort-btn active" id="btn-cites" onclick="setSort('cites')">Citations</button>
       <button class="sort-btn" id="btn-growth" onclick="setSort('growth')">Growth</button>
       <button class="sort-btn" id="btn-year" onclick="setSort('year')">Year</button>
+      <button class="sort-btn" id="btn-new" onclick="setSort('new')">Newest</button>
     </div>
     <div id="list"><div class="loading">⏳ Loading data…</div></div>
   </div>
 
   <!-- Footer -->
   <div class="footer">
-    Data sourced from Google Scholar · Auto-updated via GitHub Actions
+    Data sourced from Google Scholar · Auto-updated daily via GitHub Actions
     &nbsp;·&nbsp;
     <a href="citations.json">⬇ Download JSON</a>
   </div>
@@ -154,34 +169,65 @@ a{color:var(--blue);text-decoration:none}
 </div>
 <script>
 var DATA_URL = 'citations.json';
+var NEW_WINDOW_DAYS = 14;   /* a paper is flagged NEW if first seen within this many days */
+
 /* state */
-var papersData = [];      /* [{title,year,history:[{date,cites},...]}] */
+var papersData = [];      /* [{title,year,history:[{date,cites}],firstSeen,isNew}] */
 var latestCites = {};     /* title -> latest citation count */
 var prevCites   = {};     /* title -> previous day count */
 var allDates    = [];     /* sorted date strings */
 var dailyTotals = [];     /* total citations per date (aligned with allDates) */
 var charts      = {};     /* globalIdx -> Chart instance */
 var currentSort = 'cites';
+var maxDate     = '';
 
 /* ── helpers ── */
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function isDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches}
+function daysBetween(a,b){return Math.round((new Date(b)-new Date(a))/864e5)}
+function fmt(n){return (n>=0?'+':'')+n}
 
 function chartColors(){
   var d=isDark();
-  return {grid:d?'rgba(255,255,255,.06)':'rgba(0,0,0,.05)', tick:d?'#94a3b8':'#64748b'};
+  return {grid:d?'rgba(255,255,255,.055)':'rgba(15,23,42,.05)', tick:d?'#8ea0b8':'#94a3b8'};
 }
 
-/* For a given date, return the most recent known citation count for a paper */
-function getCountAt(hist,date){
-  /* hist is sorted ascending by date */
-  var c=0;
-  for(var i=0;i<hist.length;i++){
-    if(hist[i].date<=date) c=hist[i].cites;
-    else break;
-  }
-  return c;
+/* Global Chart.js theming */
+Chart.defaults.font.family='-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+Chart.defaults.font.size=11;
+
+/* Shared tooltip styling + rich content for citation trend charts.
+   `dates` is the aligned date array; each point shows date, citations and daily-new (delta). */
+function trendTooltip(dates){
+  return {
+    enabled:true,
+    backgroundColor:isDark()?'rgba(17,26,46,.96)':'rgba(255,255,255,.98)',
+    titleColor:isDark()?'#f1f5f9':'#0f172a',
+    bodyColor:isDark()?'#cbd5e1':'#334155',
+    borderColor:isDark()?'rgba(129,140,248,.4)':'rgba(99,102,241,.25)',
+    borderWidth:1,
+    padding:11,
+    cornerRadius:9,
+    displayColors:false,
+    titleFont:{weight:'700',size:12},
+    bodyFont:{size:12},
+    bodySpacing:5,
+    caretSize:6,
+    callbacks:{
+      title:function(items){return '📅 '+dates[items[0].dataIndex]},
+      label:function(ctx){
+        var i=ctx.dataIndex, v=ctx.parsed.y;
+        var lines=['引用总数 / Citations:  '+v.toLocaleString()];
+        if(i>0){
+          var delta=v-ctx.dataset.data[i-1];
+          lines.push('当日新增 / New:  '+fmt(delta)+(delta>0?' 📈':delta<0?' 📉':' —'));
+        }else{
+          lines.push('当日新增 / New:  — (first day)');
+        }
+        return lines;
+      }
+    }
+  };
 }
 
 /* ── sort / filter ── */
@@ -201,6 +247,8 @@ function getSorted(){
     list.sort(function(a,b){
       return ((latestCites[b.title]||0)-(prevCites[b.title]||0))-((latestCites[a.title]||0)-(prevCites[a.title]||0))
     });
+  else if(currentSort==='new')
+    list.sort(function(a,b){return (a.firstSeen<b.firstSeen?1:a.firstSeen>b.firstSeen?-1:0)||((latestCites[b.title]||0)-(latestCites[a.title]||0))});
   else
     list.sort(function(a,b){return (parseInt(b.year)||0)-(parseInt(a.year)||0)});
   return list;
@@ -214,6 +262,7 @@ function renderList(){
     return;
   }
   var medals=['🥇','🥈','🥉'];
+  var rankByCites=(currentSort==='cites');
   var html='';
   papers.forEach(function(p,idx){
     var gi=papersData.indexOf(p);
@@ -222,17 +271,20 @@ function renderList(){
     var diff=c-prev;
     var cls=diff>0?'up':diff<0?'down':'flat';
     var txt=diff>0?'+'+diff:diff<0?String(diff):'—';
-    var rankHtml=idx<3
+    var rankHtml=(rankByCites&&idx<3)
       ?'<span class="rank medal">'+medals[idx]+'</span>'
       :'<span class="rank">'+(idx+1)+'</span>';
+    var newTag=p.isNew?'<span class="tag-new">new</span>':'';
+    var totalGain=p.history.length>1?(c-p.history[0].cites):0;
     html+='<div class="paper" id="paper-'+gi+'">'
       +'<div class="paper-head" onclick="toggle('+gi+')">'
       +rankHtml
       +'<div class="paper-info">'
-        +'<div class="paper-title" title="'+esc(p.title)+'">'+esc(p.title)+'</div>'
+        +'<div class="paper-title" title="'+esc(p.title)+'">'+newTag+'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.title)+'</span></div>'
         +'<div class="paper-meta">'
           +(p.year?'<span>📅 '+esc(p.year)+'</span>':'')
-          +'<span>📊 '+p.history.length+' days</span>'
+          +'<span class="hide-sm">📊 '+p.history.length+' days tracked</span>'
+          +(totalGain>0?'<span class="hide-sm">↗ +'+totalGain+' since tracked</span>':'')
         +'</div>'
       +'</div>'
       +'<div class="paper-stats">'
@@ -258,22 +310,29 @@ function toggle(gi){
   if(!charts[gi]){
     var p=papersData[gi];
     var col=chartColors();
-    charts[gi]=new Chart(document.getElementById('chart-'+gi),{
+    var dates=p.history.map(function(h){return h.date});
+    var ctx=document.getElementById('chart-'+gi).getContext('2d');
+    var grad=ctx.createLinearGradient(0,0,0,260);
+    grad.addColorStop(0,'rgba(99,102,241,.22)');
+    grad.addColorStop(1,'rgba(99,102,241,0)');
+    charts[gi]=new Chart(ctx,{
       type:'line',
       data:{
         labels:p.history.map(function(h){return h.date.slice(5)}),
         datasets:[{
           data:p.history.map(function(h){return h.cites}),
-          borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',
+          borderColor:'#6366f1',backgroundColor:grad,
           fill:true,tension:.35,borderWidth:2,
-          pointRadius:p.history.length>45?0:3,pointHoverRadius:5
+          pointRadius:p.history.length>45?0:2.5,pointHoverRadius:6,
+          pointBackgroundColor:'#6366f1',pointBorderColor:'#fff',pointBorderWidth:1.5
         }]
       },
       options:{
         responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{title:function(t){return p.history[t[0].dataIndex].date}}}},
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},tooltip:trendTooltip(dates)},
         scales:{
-          x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:10}},
+          x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:9}},
           y:{grid:{color:col.grid},ticks:{color:col.tick}}
         }
       }
@@ -292,80 +351,101 @@ fetch(DATA_URL).then(function(r){
   Object.keys(json).forEach(function(title){
     var entry=json[title];
     var histObj=entry.history||{};
-    var hist=Object.keys(histObj).sort().map(function(d){return {date:d,cites:histObj[d]}});
-    papersData.push({title:title,year:entry.year||'',history:hist});
+    var dates=Object.keys(histObj).sort();
+    var hist=dates.map(function(d){return {date:d,cites:histObj[d]}});
+    papersData.push({
+      title:title,
+      year:entry.year||'',
+      history:hist,
+      firstSeen:entry.first_seen||(dates.length?dates[0]:'')
+    });
   });
 
   /* collect all unique dates */
   var dateSet={};
   papersData.forEach(function(p){p.history.forEach(function(h){dateSet[h.date]=1})});
   allDates=Object.keys(dateSet).sort();
+  maxDate=allDates[allDates.length-1]||'';
 
-  /* latest & previous citation counts per paper */
+  /* latest & previous citation counts per paper + NEW flag */
+  var newCount=0;
   papersData.forEach(function(p){
     var h=p.history;
     latestCites[p.title]=h.length?h[h.length-1].cites:0;
     prevCites[p.title]=h.length>1?h[h.length-2].cites:latestCites[p.title];
+    p.isNew = p.firstSeen && maxDate && daysBetween(p.firstSeen,maxDate)<=NEW_WINDOW_DAYS && p.firstSeen!==allDates[0];
+    if(p.isNew) newCount++;
   });
 
-  /* daily totals (sum of most-recent known count for each paper on each date) */
+  /* daily totals: for each date, sum every paper's latest-known count up to that date */
+  var pacc={};
   dailyTotals=allDates.map(function(date){
-    return papersData.reduce(function(sum,p){return sum+getCountAt(p.history,date)},0);
+    var sum=0;
+    papersData.forEach(function(p,i){
+      var h=p.history, lo=pacc[i]||0;
+      for(var k=lo;k<h.length;k++){ if(h[k].date<=date){pacc[i]=k;} else break; }
+      if(h.length&&h[0].date<=date) sum+=h[pacc[i]].cites;
+    });
+    return sum;
   });
 
   /* ── stat cards ── */
   var total=dailyTotals[dailyTotals.length-1]||0;
   var prevTotal=dailyTotals.length>1?dailyTotals[dailyTotals.length-2]:total;
-  var todayNew=Math.max(0,total-prevTotal);
+  var todayNew=total-prevTotal;
   var twoDaysTotal=dailyTotals.length>2?dailyTotals[dailyTotals.length-3]:prevTotal;
-  var yestNew=Math.max(0,prevTotal-twoDaysTotal);
+  var yestNew=prevTotal-twoDaysTotal;
 
-  /* 7-day avg growth */
-  var growths=[];
-  for(var i=1;i<dailyTotals.length;i++){var g=dailyTotals[i]-dailyTotals[i-1];if(g>=0)growths.push(g);}
-  var avg7=growths.length?growths.slice(-7).reduce(function(a,v){return a+v},0)/Math.min(7,growths.slice(-7).length):0;
-  var avgAll=growths.length?growths.reduce(function(a,v){return a+v},0)/growths.length:0;
+  /* 7-day avg growth (uses all deltas incl. corrections) */
+  var deltas=[];
+  for(var i=1;i<dailyTotals.length;i++)deltas.push(dailyTotals[i]-dailyTotals[i-1]);
+  var last7=deltas.slice(-7);
+  var avg7=last7.length?last7.reduce(function(a,v){return a+v},0)/last7.length:0;
+  var avgAll=deltas.length?deltas.reduce(function(a,v){return a+v},0)/deltas.length:0;
 
-  function setChange(id,diff){
+  function setChange(id,diff,suffix){
     var el=document.getElementById(id);
-    el.textContent=(diff>=0?'+':'')+diff+' vs yesterday';
+    el.textContent=fmt(diff)+(suffix||' vs yesterday');
     el.className='stat-change '+(diff>0?'up':diff<0?'down':'');
   }
 
   document.getElementById('totalCites').textContent=total.toLocaleString();
-  document.getElementById('todayCites').textContent=todayNew.toLocaleString();
+  document.getElementById('todayCites').textContent=fmt(todayNew);
   document.getElementById('paperCount').textContent=papersData.length;
   document.getElementById('avgGrowth').textContent=avg7.toFixed(1);
   document.getElementById('avgAll').textContent='all-time avg: '+avgAll.toFixed(1)+'/day';
-  document.getElementById('daysTracked').textContent=allDates.length+' days tracked';
-  setChange('totalChange',total-prevTotal);
-  setChange('todayChange',todayNew-yestNew);
+  document.getElementById('daysTracked').textContent=newCount>0?('✨ '+newCount+' new this window'):(allDates.length+' days tracked');
+  setChange('totalChange',todayNew);
+  setChange('todayChange',todayNew-yestNew,' vs yesterday');
 
   /* last updated */
-  document.getElementById('lastUpdated').textContent=
-    'Last updated: '+(allDates[allDates.length-1]||'—')+' · '+papersData.length+' papers';
+  document.getElementById('lastUpdated').innerHTML=
+    '<span class="pulse"></span>Last updated: '+(maxDate||'—')+' · tracking '+papersData.length+' papers over '+allDates.length+' days';
 
   /* ── overall trend chart ── */
   var col=chartColors();
-  new Chart(document.getElementById('overallChart'),{
+  var octx=document.getElementById('overallChart').getContext('2d');
+  var ograd=octx.createLinearGradient(0,0,0,230);
+  ograd.addColorStop(0,'rgba(99,102,241,.28)');
+  ograd.addColorStop(1,'rgba(99,102,241,0)');
+  new Chart(octx,{
     type:'line',
     data:{
       labels:allDates.map(function(d){return d.slice(5)}),
       datasets:[{
         data:dailyTotals,
-        borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.1)',
-        fill:true,tension:.35,borderWidth:2,
-        pointRadius:allDates.length>60?0:3,pointHoverRadius:5
+        borderColor:'#6366f1',backgroundColor:ograd,
+        fill:true,tension:.35,borderWidth:2.5,
+        pointRadius:allDates.length>60?0:2.5,pointHoverRadius:6,
+        pointBackgroundColor:'#6366f1',pointBorderColor:'#fff',pointBorderWidth:1.5
       }]
     },
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{callbacks:{title:function(t){return allDates[t[0].dataIndex]}}}
-      },
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:trendTooltip(allDates)},
       scales:{
-        x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:14}},
+        x:{grid:{display:false},ticks:{color:col.tick,maxTicksLimit:13}},
         y:{grid:{color:col.grid},ticks:{color:col.tick}}
       }
     }
