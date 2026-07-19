@@ -85,10 +85,21 @@ a:hover{text-decoration:underline}
 .arrow{color:var(--text3);font-size:.65rem;transition:transform .25s;flex-shrink:0}
 .paper.open .arrow{transform:rotate(180deg)}
 
-/* ── Paper Chart ── */
-.paper-chart{max-height:0;overflow:hidden;transition:max-height .35s ease}
-.paper.open .paper-chart{max-height:320px}
-.paper-chart-inner{padding:.85rem 1rem;height:270px;background:var(--surface);border-top:1px solid var(--border)}
+/* ── Paper Chart + Detail ── */
+.paper-chart{max-height:0;overflow:hidden;transition:max-height .4s ease}
+.paper.open .paper-chart{max-height:1600px}
+.paper-chart-inner{padding:1rem 1.1rem;background:var(--surface);border-top:1px solid var(--border)}
+.pd-tldr{font-size:.82rem;line-height:1.55;color:var(--text);background:var(--accentSoft);border-left:3px solid var(--accent);border-radius:8px;padding:.55rem .75rem;margin-bottom:.7rem}
+.pd-tldr b{color:var(--accent);font-weight:700}
+.pd-authors{font-size:.78rem;color:var(--text2);margin-bottom:.6rem;line-height:1.5}
+.pd-links{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.7rem}
+.pd-link{font-size:.74rem;font-weight:600;padding:.3rem .6rem;border-radius:7px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);display:inline-flex;align-items:center;gap:.25rem}
+.pd-link:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+.pd-abstract{font-size:.78rem;line-height:1.6;color:var(--text2);margin-bottom:.4rem}
+.pd-abstract.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pd-more{font-size:.74rem;color:var(--accent);cursor:pointer;font-weight:600;margin-bottom:.7rem;display:inline-block}
+.pd-nometa{font-size:.76rem;color:var(--text3);margin-bottom:.6rem}
+.pd-chart{height:230px;margin-top:.3rem}
 
 /* ── Milestones ── */
 .milestones{display:flex;flex-direction:column;gap:.5rem}
@@ -209,6 +220,55 @@ function chartColors(){
 Chart.defaults.font.family='-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 Chart.defaults.font.size=11;
 
+/* Crosshair plugin — draws a vertical guide at the hovered x so any point is
+   trivially easy to read; combined with interaction mode 'index' the whole
+   plot area is hoverable (no need to land exactly on a dot). */
+var crosshairPlugin={
+  id:'crosshair',
+  afterDraw:function(chart){
+    var t=chart.tooltip;
+    if(!t||!t._active||!t._active.length) return;
+    var x=t._active[0].element.x, a=chart.chartArea, ctx=chart.ctx;
+    ctx.save();
+    ctx.beginPath();ctx.moveTo(x,a.top);ctx.lineTo(x,a.bottom);
+    ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.strokeStyle=isDark()?'rgba(129,140,248,.55)':'rgba(99,102,241,.45)';
+    ctx.stroke();ctx.restore();
+  }
+};
+
+/* ── paper detail (summary / authors / links / abstract) ── */
+function linkBtn(href,label){return '<a class="pd-link" href="'+href+'" target="_blank" rel="noopener">'+label+'</a>'}
+function shortVenue(v){return v.length>34?v.slice(0,34)+'…':v}
+function toggleAbs(gi,ev){
+  ev.stopPropagation();
+  var a=document.getElementById('abs-'+gi);
+  var clamped=a.classList.toggle('clamp');
+  ev.target.textContent=clamped?'Show more ▾':'Show less ▴';
+}
+function buildDetail(p,gi){
+  var m=p.meta||{}, h='';
+  if(m.tldr) h+='<div class="pd-tldr"><b>💡 TL;DR</b> '+esc(m.tldr)+'</div>';
+  if(m.authors&&m.authors.length){
+    var au=m.authors.slice(0,10).map(esc).join(', ')+(m.authors.length>10?' et al.':'');
+    h+='<div class="pd-authors">👥 '+au+'</div>';
+  }
+  var links=[linkBtn('https://scholar.google.com/scholar?q='+encodeURIComponent(p.title),'🎓 Scholar')];
+  if(m.arxiv) links.push(linkBtn('https://arxiv.org/abs/'+encodeURIComponent(m.arxiv),'📄 arXiv'));
+  if(m.doi)   links.push(linkBtn('https://doi.org/'+encodeURIComponent(m.doi),'🔗 DOI'));
+  if(m.pdf)   links.push(linkBtn(m.pdf,'⬇ PDF'));
+  if(m.s2url) links.push(linkBtn(m.s2url,'🔎 SemanticScholar'));
+  h+='<div class="pd-links">'+links.join('')+'</div>';
+  if(m.abstract){
+    h+='<div class="pd-abstract clamp" id="abs-'+gi+'">'+esc(m.abstract)+'</div>'
+      +'<span class="pd-more" onclick="toggleAbs('+gi+',event)">Show more ▾</span>';
+  }else if(!m.tldr){
+    h+='<div class="pd-nometa">ℹ️ No abstract available (not indexed by Semantic Scholar).</div>';
+  }
+  h+='<div class="pd-chart"><canvas id="chart-'+gi+'"></canvas></div>';
+  return h;
+}
+
 /* Shared tooltip styling + rich content for citation trend charts.
    `dates` is the aligned date array; each point shows date, citations and daily-new (delta). */
 function trendTooltip(dates){
@@ -297,6 +357,9 @@ function renderMilestones(){
 
 /* ── render paper list ── */
 function renderList(){
+  /* destroy per-paper charts so stale canvases aren't reused after re-render */
+  Object.keys(charts).forEach(function(k){try{charts[k].destroy()}catch(e){}});
+  charts={};
   var papers=getSorted();
   if(!papers.length){
     document.getElementById('list').innerHTML='<div class="loading">No papers found.</div>';
@@ -324,7 +387,8 @@ function renderList(){
         +'<div class="paper-title" title="'+esc(p.title)+'">'+newTag+'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.title)+'</span></div>'
         +'<div class="paper-meta">'
           +(p.year?'<span>📅 '+esc(p.year)+'</span>':'')
-          +'<span class="hide-sm">📊 '+p.history.length+' days tracked</span>'
+          +(p.meta&&p.meta.venue?'<span class="hide-sm">🏛 '+esc(shortVenue(p.meta.venue))+'</span>':'')
+          +'<span class="hide-sm">📊 '+p.history.length+' days</span>'
           +(totalGain>0?'<span class="hide-sm">↗ +'+totalGain+' since tracked</span>':'')
         +'</div>'
       +'</div>'
@@ -334,7 +398,7 @@ function renderList(){
       +'</div>'
       +'<span class="arrow">▼</span>'
       +'</div>'
-      +'<div class="paper-chart"><div class="paper-chart-inner"><canvas id="chart-'+gi+'"></canvas></div></div>'
+      +'<div class="paper-chart"><div class="paper-chart-inner">'+buildDetail(p,gi)+'</div></div>'
       +'</div>';
   });
   document.getElementById('list').innerHTML=html;
@@ -364,10 +428,11 @@ function toggle(gi){
           data:p.history.map(function(h){return h.cites}),
           borderColor:'#6366f1',backgroundColor:grad,
           fill:true,tension:.35,borderWidth:2,
-          pointRadius:p.history.length>45?0:2.5,pointHoverRadius:6,
+          pointRadius:p.history.length>45?0:2.5,pointHoverRadius:6,hoverRadius:6,
           pointBackgroundColor:'#6366f1',pointBorderColor:'#fff',pointBorderWidth:1.5
         }]
       },
+      plugins:[crosshairPlugin],
       options:{
         responsive:true,maintainAspectRatio:false,
         interaction:{mode:'index',intersect:false},
@@ -398,7 +463,8 @@ fetch(DATA_URL).then(function(r){
       title:title,
       year:entry.year||'',
       history:hist,
-      firstSeen:entry.first_seen||(dates.length?dates[0]:'')
+      firstSeen:entry.first_seen||(dates.length?dates[0]:''),
+      meta:entry.meta||{}
     });
   });
 
@@ -477,10 +543,11 @@ fetch(DATA_URL).then(function(r){
         data:dailyTotals,
         borderColor:'#6366f1',backgroundColor:ograd,
         fill:true,tension:.35,borderWidth:2.5,
-        pointRadius:allDates.length>60?0:2.5,pointHoverRadius:6,
+        pointRadius:allDates.length>60?0:2.5,pointHoverRadius:6,hoverRadius:6,
         pointBackgroundColor:'#6366f1',pointBorderColor:'#fff',pointBorderWidth:1.5
       }]
     },
+    plugins:[crosshairPlugin],
     options:{
       responsive:true,maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},

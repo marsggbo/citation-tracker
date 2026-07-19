@@ -8,6 +8,7 @@ import os
 import sys
 import re
 import csv
+import time
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
@@ -137,6 +138,80 @@ def scrape(author_id):
     return papers if papers else None
 
 
+# ─── 元数据补充（Semantic Scholar）──────────────────────────────────────────────
+
+S2_URL = "https://api.semanticscholar.org/graph/v1/paper/search/match"
+S2_FIELDS = "title,year,venue,authors,tldr,abstract,externalIds,openAccessPdf,url"
+S2_RETRY_DAYS = 14   # 未匹配成功的论文，多久后再重试
+
+
+def _days_since(date_str, today):
+    try:
+        d0 = datetime.strptime(date_str, "%Y-%m-%d")
+        d1 = datetime.strptime(today, "%Y-%m-%d")
+        return (d1 - d0).days
+    except Exception:
+        return 9999
+
+
+def _s2_match(title):
+    """在 Semantic Scholar 上按标题匹配论文，返回精简元数据；失败返回 None。"""
+    q = urllib.parse.urlencode({"query": title, "fields": S2_FIELDS})
+    req = urllib.request.Request(
+        f"{S2_URL}?{q}", headers={"User-Agent": "citation-tracker (github.com/marsggbo)"}
+    )
+    resp = urllib.request.urlopen(req, timeout=30)
+    j = json.loads(resp.read().decode("utf-8"))
+    arr = j.get("data") or []
+    if not arr:
+        return None
+    p = arr[0]
+    ext = p.get("externalIds") or {}
+    tldr = p.get("tldr") or {}
+    return {
+        "authors": [a.get("name", "") for a in (p.get("authors") or [])],
+        "venue": p.get("venue") or "",
+        "tldr": tldr.get("text", "") if tldr else "",
+        "abstract": p.get("abstract") or "",
+        "arxiv": ext.get("ArXiv", ""),
+        "doi": ext.get("DOI", ""),
+        "s2url": p.get("url", ""),
+        "pdf": (p.get("openAccessPdf") or {}).get("url", ""),
+    }
+
+
+def enrich_metadata(data, today):
+    """为缺少元数据（作者/摘要/链接）的论文补充 Semantic Scholar 信息。
+    已成功补充的论文会被缓存，不会每天重复请求。"""
+    todo = []
+    for title, v in data.items():
+        m = v.get("meta")
+        if m is None:
+            todo.append(title)
+        elif not m.get("tldr") and not m.get("abstract"):
+            if _days_since(m.get("_tried", ""), today) >= S2_RETRY_DAYS:
+                todo.append(title)
+
+    if not todo:
+        print("✓ 论文元数据已是最新")
+        return
+
+    print(f"🔎 补充元数据：{len(todo)} 篇（来源 Semantic Scholar）...")
+    for title in todo:
+        meta = None
+        try:
+            meta = _s2_match(title)
+        except Exception as e:
+            print(f"   ⚠️ 查询失败 {title[:42]}… → {e}")
+        if meta:
+            data[title]["meta"] = meta
+            print(f"   ✓ {title[:42]}…")
+        else:
+            data[title].setdefault("meta", {})["_tried"] = today
+            print(f"   – 未匹配 {title[:42]}…")
+        time.sleep(1.1)   # 尊重 S2 未授权速率限制
+
+
 def detect_new_papers(data, papers, today):
     """对比历史数据，找出本次首次出现的新论文并打印。"""
     existing = set(data.keys())
@@ -161,15 +236,19 @@ def main():
     # 加载现有数据（含可能的 CSV 迁移）
     data = load_data()
 
-    # 若已有论文且今天数据已存在，则跳过爬取
+    # 若已有论文且今天数据已存在，则跳过爬取（但仍补充元数据 + 保存）
     if data and any(today in v["history"] for v in data.values()):
-        print(f"✓ {today} 数据已存在，跳过爬取")
+        print(f"✓ {today} 引用数据已存在，跳过爬取")
+        enrich_metadata(data, today)
+        save_data(data)
         return
 
     # 爬取
     papers = scrape(author_id)
     if not papers:
-        print("⚠️ 抓取失败，退出")
+        print("⚠️ 抓取失败；仍尝试补充元数据后退出")
+        enrich_metadata(data, today)
+        save_data(data)
         sys.exit(0)
 
     # 检测新增论文（在合并前对比历史）
@@ -188,6 +267,9 @@ def main():
         if not data[title].get("year") and p["year"]:
             data[title]["year"] = p["year"]
         data[title]["history"][today] = p["citations"]
+
+    # 补充作者/摘要/链接等元数据（新论文优先，已缓存的跳过）
+    enrich_metadata(data, today)
 
     save_data(data)
 
