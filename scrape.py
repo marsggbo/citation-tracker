@@ -212,17 +212,9 @@ def enrich_metadata(data, today):
         time.sleep(1.1)   # 尊重 S2 未授权速率限制
 
 
-# 同一论文的不同版本（如预印本 → 正式版），按归一化标题映射到统一条目
-TITLE_ALIASES = {
-    "benchmarking deep learning models and automated model design for covid 19 detection with chest ct scans":
-        "automated model design and benchmarking of deep learning models for covid 19 detection with chest ct scans",
-}
-
-
 def _norm_title(t):
     """标题归一化：Google Scholar 会不定期改变大小写/标点，需按归一化后匹配以免重复建条目。"""
-    n = re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
-    return TITLE_ALIASES.get(n, n)
+    return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
 
 def detect_new_papers(data, papers, today):
@@ -281,9 +273,7 @@ def main():
             data[title]["first_seen"] = hist_dates[0] if hist_dates else today
         if not data[title].get("year") and p["year"]:
             data[title]["year"] = p["year"]
-        # 多条抓取结果映射到同一条目时（如预印本+正式版），取较大引用数
-        prev = data[title]["history"].get(today, 0)
-        data[title]["history"][today] = max(prev, p["citations"])
+        data[title]["history"][today] = p["citations"]
 
     # 补充作者/摘要/链接等元数据（新论文优先，已缓存的跳过）
     enrich_metadata(data, today)
