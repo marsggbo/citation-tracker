@@ -212,10 +212,15 @@ def enrich_metadata(data, today):
         time.sleep(1.1)   # 尊重 S2 未授权速率限制
 
 
+def _norm_title(t):
+    """标题归一化：Google Scholar 会不定期改变大小写/标点，需按归一化后匹配以免重复建条目。"""
+    return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
+
+
 def detect_new_papers(data, papers, today):
     """对比历史数据，找出本次首次出现的新论文并打印。"""
-    existing = set(data.keys())
-    new_titles = [p["title"] for p in papers if p["title"] not in existing]
+    existing = {_norm_title(k) for k in data}
+    new_titles = [p["title"] for p in papers if _norm_title(p["title"]) not in existing]
     if new_titles:
         print(f"🆕 发现 {len(new_titles)} 篇新论文（{today}）:")
         for t in new_titles:
@@ -254,12 +259,14 @@ def main():
     # 检测新增论文（在合并前对比历史）
     detect_new_papers(data, papers, today)
 
-    # 合并到数据字典
+    # 合并到数据字典（按归一化标题匹配已有条目，标题写法变化时沿用旧条目）
+    norm_map = {_norm_title(k): k for k in data}
     for p in papers:
-        title = p["title"]
+        title = norm_map.get(_norm_title(p["title"]), p["title"])
         if title not in data:
             # 首次出现的论文：记录 first_seen，供前端标记 NEW
             data[title] = {"year": p["year"], "first_seen": today, "history": {}}
+            norm_map[_norm_title(title)] = title
         if not data[title].get("first_seen"):
             # 为历史遗留数据补齐 first_seen（取最早的历史日期）
             hist_dates = sorted(data[title].get("history", {}).keys())
