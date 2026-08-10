@@ -5,6 +5,8 @@ on:
     # 每天 UTC 22:00 = 新加坡时间 06:00，留有充足缓冲保证 8-9 点前完成
     - cron: '0 22 * * *'
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
   group: citation-update
