@@ -1,14 +1,14 @@
 # Citation Tracker 📊
 
-自动追踪 Google Scholar 论文引用量的工具。每天自动更新，生成可视化图表。
+基于 [MyPaperTrend](https://github.com/marsggbo/MyPaperTrend) 浏览器扩展同步数据的 Google Scholar 引用趋势公开看板，部署在 GitHub Pages 上可直接外网访问。
 
-## 特性
+## 数据流说明
 
-- ✅ 自动抓取 Google Scholar 引用数据
-- ✅ 每日自动更新
-- ✅ 可视化每篇论文的引用趋势
-- ✅ 支持暗黑模式
-- ✅ 完全免费，基于 GitHub Pages
+1. **采集与同步**：浏览器安装 [MyPaperTrend](https://github.com/marsggbo/MyPaperTrend) 插件并开启 GitHub 云同步，直接在已登录的 Google Scholar 页面无感采集完整引用、h-index、i10-index，自动写入公开数据仓库 [`mypapertrend-data`](https://github.com/marsggbo/mypapertrend-data)（Schema v2：`citations-<scholar_id>.json`）。
+2. **网页直读展示**：本仓库的 `index.html` 在浏览器端直接拉取 `mypapertrend-data` 的最新 JSON（主源 `raw.githubusercontent.com`，自动降级 `cdn.jsdelivr.net`），无需服务端爬虫或 ScraperAPI Key。
+3. **多学者切换**：支持通过 URL 参数查看任意已同步的学者，例如：
+   - 默认：`https://marsggbo.github.io/citation-tracker/`
+   - 指定学者：`https://marsggbo.github.io/citation-tracker/?user=LYNKm_8AAAAJ`
 
 ## 快速开始
 

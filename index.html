@@ -45,6 +45,7 @@ a:hover{text-decoration:underline}
 .ico-total{background:rgba(99,102,241,.14)}
 .ico-today{background:rgba(16,185,129,.14)}
 .ico-count{background:rgba(245,158,11,.14)}
+.ico-hindex{background:rgba(139,92,246,.14)}
 .ico-avg{background:rgba(236,72,153,.14)}
 .stat-value{font-size:1.85rem;font-weight:800;line-height:1.05;color:var(--text);letter-spacing:-.5px}
 .stat-change{font-size:.74rem;margin-top:.3rem;color:var(--text2);font-weight:500}
@@ -150,6 +151,11 @@ a:hover{text-decoration:underline}
       <div class="stat-value" id="paperCount">—</div>
       <div class="stat-change" id="daysTracked"></div>
     </div>
+    <div class="stat-card" id="hindexCard" style="display:none">
+      <div class="stat-top"><span class="stat-label">h-index</span><span class="stat-ico ico-hindex">🏅</span></div>
+      <div class="stat-value" id="hindexVal">—</div>
+      <div class="stat-change" id="i10Val"></div>
+    </div>
     <div class="stat-card">
       <div class="stat-top"><span class="stat-label">7-Day Avg Growth</span><span class="stat-ico ico-avg">📈</span></div>
       <div class="stat-value" id="avgGrowth">—</div>
@@ -185,18 +191,51 @@ a:hover{text-decoration:underline}
 
   <!-- Footer -->
   <div class="footer">
-    Data sourced from Google Scholar · Auto-updated daily via GitHub Actions
+    Synced via <a href="https://github.com/marsggbo/MyPaperTrend" target="_blank" rel="noopener">MyPaperTrend</a>
     &nbsp;·&nbsp;
-    <a href="citations.json">⬇ Download JSON</a>
+    Live feed from <a href="https://github.com/marsggbo/mypapertrend-data" target="_blank" rel="noopener">mypapertrend-data</a>
+    &nbsp;·&nbsp;
+    <a id="rawJsonLink" href="https://raw.githubusercontent.com/marsggbo/mypapertrend-data/main/citations-LYNKm_8AAAAJ.json" target="_blank" rel="noopener">⬇ Raw JSON</a>
   </div>
 
 </div>
 <script>
-var DATA_URL = 'citations.json';
+var DEFAULT_SCHOLAR_ID = 'LYNKm_8AAAAJ';
+var DATA_REPO = 'marsggbo/mypapertrend-data';
+var DATA_BRANCH = 'main';
 var NEW_WINDOW_DAYS = 14;   /* a paper is flagged NEW if first seen within this many days */
 
+function getScholarId(){
+  try {
+    var u = new URLSearchParams(location.search).get('user') || '';
+    if (/^[A-Za-z0-9_-]{8,}$/.test(u.trim())) return u.trim();
+  } catch (e) {}
+  return DEFAULT_SCHOLAR_ID;
+}
+
+function buildDataUrls(scholarId){
+  var file = 'citations-' + encodeURIComponent(scholarId) + '.json';
+  var raw = 'https://raw.githubusercontent.com/' + DATA_REPO + '/' + DATA_BRANCH + '/' + file;
+  var cdn = 'https://cdn.jsdelivr.net/gh/' + DATA_REPO + '@' + DATA_BRANCH + '/' + file;
+  var urls = [raw, cdn];
+  if (scholarId === DEFAULT_SCHOLAR_ID) urls.push('citations.json');
+  return urls;
+}
+
+function fetchWithFallback(urls, idx){
+  idx = idx || 0;
+  if (idx >= urls.length) return Promise.reject(new Error('Failed to load citation data from remote sources.'));
+  return fetch(urls[idx], { cache: 'no-cache' }).then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json().then(function(j){ return { json: j, url: urls[idx] }; });
+  }).catch(function(err){
+    if (idx + 1 < urls.length) return fetchWithFallback(urls, idx + 1);
+    throw err;
+  });
+}
+
 /* state */
-var papersData = [];      /* [{title,year,history:[{date,cites}],firstSeen,isNew}] */
+var papersData = [];      /* [{title,year,pubId,history:[{date,cites}],firstSeen,isNew,meta}] */
 var latestCites = {};     /* title -> latest citation count */
 var prevCites   = {};     /* title -> previous day count */
 var allDates    = [];     /* sorted date strings */
@@ -204,6 +243,94 @@ var dailyTotals = [];     /* total citations per date (aligned with allDates) */
 var charts      = {};     /* globalIdx -> Chart instance */
 var currentSort = 'cites';
 var maxDate     = '';
+
+/* ── deduplication helpers (matches MyPaperTrend schema v2 rules) ── */
+function normTitle(t){
+  var s = String(t || '');
+  if (s.normalize) s = s.normalize('NFKC');
+  s = s.toLowerCase();
+  try { s = s.replace(/[^\p{L}\p{N}]+/gu, ' '); }
+  catch (e) { s = s.replace(/[\s\-–—‐:.,;!?()\[\]{}'"\/\\]+/g, ' '); }
+  return s.trim();
+}
+function maxDateOf(h){
+  var ds=Object.keys(h||{}); if(!ds.length) return '';
+  var m=ds[0]; for(var i=1;i<ds.length;i++) if(ds[i]>m) m=ds[i]; return m;
+}
+function minDateOf(h){
+  var ds=Object.keys(h||{}); if(!ds.length) return '';
+  var m=ds[0]; for(var i=1;i<ds.length;i++) if(ds[i]<m) m=ds[i]; return m;
+}
+function latestCitesOf(h){ var d=maxDateOf(h); return d?(h[d]||0):0; }
+function upperCount(s){ var m=String(s||'').match(/[A-Z]/g); return m?m.length:0; }
+
+function pickPaperTitle(tA,a,tB,b){
+  tA=String(tA||'').trim(); tB=String(tB||'').trim();
+  if(!tA) return tB; if(!tB||tA===tB) return tA;
+  var ntA=normTitle(tA), ntB=normTitle(tB);
+  if(ntA && ntA===ntB){
+    var dotA=/\.$/.test(tA)?1:0, dotB=/\.$/.test(tB)?1:0;
+    if(dotA!==dotB) return dotA<dotB?tA:tB;
+    var upA=upperCount(tA), upB=upperCount(tB);
+    if(upA!==upB) return upB>upA?tB:tA;
+  }
+  return maxDateOf(b&&b.history)>=maxDateOf(a&&a.history)?tB:tA;
+}
+
+function mergePaperEntries(tA,a,tB,b){
+  a=a||{}; b=b||{};
+  var ha=a.history||{}, hb=b.history||{}, mh={}, history={};
+  Object.keys(ha).forEach(function(d){mh[d]=ha[d]});
+  Object.keys(hb).forEach(function(d){mh[d]=mh[d]===undefined?hb[d]:Math.max(mh[d],hb[d])});
+  Object.keys(mh).sort().forEach(function(d){history[d]=mh[d]});
+  var minH=minDateOf(history), fa=a.first_seen||'', fb=b.first_seen||'';
+  var first_seen=fa&&fb?(fa<fb?fa:fb):(fa||fb);
+  if(minH&&(!first_seen||minH<first_seen)) first_seen=minH;
+  var year=(maxDateOf(hb)>=maxDateOf(ha)?(b.year||a.year):(a.year||b.year))||'';
+  var pub_id=b.pub_id||a.pub_id||'';
+  var mA=a.meta||{}, mB=b.meta||{};
+  var rA=!!(mA.tldr||mA.abstract), rB=!!(mB.tldr||mB.abstract);
+  var meta=rB&&!rA?Object.assign({},mA,mB):rA&&!rB?Object.assign({},mB,mA):Object.assign({},mA,mB);
+  return {title:pickPaperTitle(tA,a,tB,b), entry:{year:year,pub_id:pub_id,first_seen:first_seen,history:history,meta:meta}};
+}
+
+function findPaperKey(obj,title,pubId){
+  var keys=Object.keys(obj);
+  if(pubId){
+    for(var i=0;i<keys.length;i++) if(obj[keys[i]]&&obj[keys[i]].pub_id===pubId) return keys[i];
+  }
+  var nt=normTitle(title); if(!nt) return null;
+  var best=null, bestC=-1;
+  for(var j=0;j<keys.length;j++){
+    var k=keys[j], cand=obj[k];
+    if(!cand || (pubId&&cand.pub_id&&cand.pub_id!==pubId)) continue;
+    if(normTitle(k)===nt){ var c=latestCitesOf(cand.history); if(c>bestC){bestC=c;best=k;} }
+  }
+  return best;
+}
+
+function dedupePapersMap(src){
+  var items=Object.keys(src||{}).map(function(k){return {title:k,entry:src[k]||{}}});
+  items.sort(function(x,y){
+    var px=x.entry.pub_id?1:0, py=y.entry.pub_id?1:0; if(px!==py) return py-px;
+    var cx=latestCitesOf(x.entry.history), cy=latestCitesOf(y.entry.history); if(cx!==cy) return cy-cx;
+    var dx=maxDateOf(x.entry.history), dy=maxDateOf(y.entry.history); return dx<dy?1:dx>dy?-1:0;
+  });
+  var out={};
+  items.forEach(function(it){
+    var rt=String(it.title||'').trim(); if(!rt) return;
+    var mk=findPaperKey(out,rt,it.entry.pub_id);
+    if(mk){
+      var m=mergePaperEntries(mk,out[mk],rt,it.entry);
+      if(m.title!==mk&&!out[m.title]){delete out[mk];out[m.title]=m.entry;} else out[mk]=m.entry;
+    }else{
+      var base=rt, tag=it.entry.year||((it.entry.pub_id||'').split(':').pop().slice(0,4))||'2', k=base, n=2;
+      while(out[k]){k=base+' ('+tag+(n>2?'-'+n:'')+')';n++;}
+      out[k]=mergePaperEntries(rt,null,rt,it.entry).entry;
+    }
+  });
+  return out;
+}
 
 /* ── helpers ── */
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -253,7 +380,10 @@ function buildDetail(p,gi){
     var au=m.authors.slice(0,10).map(esc).join(', ')+(m.authors.length>10?' et al.':'');
     h+='<div class="pd-authors">👥 '+au+'</div>';
   }
-  var links=[linkBtn('https://scholar.google.com/scholar?q='+encodeURIComponent(p.title),'🎓 Scholar')];
+  var scholarHref=p.pubId
+    ?'https://scholar.google.com/citations?view_op=view_citation&hl=en&citation_for_view='+encodeURIComponent(p.pubId)
+    :'https://scholar.google.com/scholar?q='+encodeURIComponent(p.title);
+  var links=[linkBtn(scholarHref,'🎓 Scholar')];
   if(m.arxiv) links.push(linkBtn('https://arxiv.org/abs/'+encodeURIComponent(m.arxiv),'📄 arXiv'));
   if(m.doi)   links.push(linkBtn('https://doi.org/'+encodeURIComponent(m.doi),'🔗 DOI'));
   if(m.pdf)   links.push(linkBtn(m.pdf,'⬇ PDF'));
@@ -446,33 +576,42 @@ function toggle(gi){
   }
 }
 
-/* ── main data load ── */
-fetch(DATA_URL).then(function(r){
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return r.json();
-}).then(function(json){
+/* ── main data load (supports MyPaperTrend Schema v2 + legacy Schema v1) ── */
+var scholarId = getScholarId();
+var candidateUrls = buildDataUrls(scholarId);
+document.getElementById('rawJsonLink').href = candidateUrls[0];
+
+fetchWithFallback(candidateUrls, 0).then(function(res){
+  var raw = res.json || {};
+  var isV2 = (raw.schema === 2 || !!raw.papers) && typeof raw.papers === 'object';
+  var profile = isV2 ? (raw.profile || {}) : {};
+  var metrics = (profile && profile.metrics) || {};
+  var metricDates = Object.keys(metrics).sort();
+  var papersMap = dedupePapersMap(isV2 ? raw.papers : raw);
 
   /* parse JSON into papersData */
   papersData=[];
-  Object.keys(json).forEach(function(title){
-    var entry=json[title];
+  Object.keys(papersMap).forEach(function(title){
+    var entry=papersMap[title];
     var histObj=entry.history||{};
     var dates=Object.keys(histObj).sort();
     var hist=dates.map(function(d){return {date:d,cites:histObj[d]}});
     papersData.push({
       title:title,
       year:entry.year||'',
+      pubId:entry.pub_id||'',
       history:hist,
       firstSeen:entry.first_seen||(dates.length?dates[0]:''),
       meta:entry.meta||{}
     });
   });
 
-  /* collect all unique dates */
+  /* collect all unique dates (union of paper histories + authoritative metric dates) */
   var dateSet={};
   papersData.forEach(function(p){p.history.forEach(function(h){dateSet[h.date]=1})});
+  metricDates.forEach(function(d){dateSet[d]=1});
   allDates=Object.keys(dateSet).sort();
-  maxDate=allDates[allDates.length-1]||'';
+  maxDate=(isV2&&raw.updated&&raw.updated>(allDates[allDates.length-1]||''))?raw.updated:(allDates[allDates.length-1]||'');
 
   /* latest & previous citation counts per paper + NEW flag */
   var newCount=0;
@@ -484,9 +623,14 @@ fetch(DATA_URL).then(function(r){
     if(p.isNew) newCount++;
   });
 
-  /* daily totals: for each date, sum every paper's latest-known count up to that date */
-  var pacc={};
+  /* daily totals: prefer authoritative Google Scholar profile.metrics (exact even under pagination);
+     fall back to sum of per-paper last-known counts before metrics were recorded. */
+  var pacc={}, mi=0;
   dailyTotals=allDates.map(function(date){
+    while(mi<metricDates.length-1 && metricDates[mi+1]<=date) mi++;
+    if(metricDates.length && metricDates[mi]<=date){
+      return metrics[metricDates[mi]].citations;
+    }
     var sum=0;
     papersData.forEach(function(p,i){
       var h=p.history, lo=pacc[i]||0;
@@ -525,9 +669,17 @@ fetch(DATA_URL).then(function(r){
   setChange('totalChange',todayNew);
   setChange('todayChange',todayNew-yestNew,' vs yesterday');
 
+  var latestMetric=metricDates.length?metrics[metricDates[metricDates.length-1]]:null;
+  if(latestMetric && latestMetric.hindex!=null){
+    document.getElementById('hindexCard').style.display='';
+    document.getElementById('hindexVal').textContent=latestMetric.hindex;
+    document.getElementById('i10Val').textContent=latestMetric.i10!=null?('i10-index: '+latestMetric.i10):'';
+  }
+
   /* last updated */
+  var scholarPrefix=profile.name?(esc(profile.name)+' · '):'';
   document.getElementById('lastUpdated').innerHTML=
-    '<span class="pulse"></span>Last updated: '+(maxDate||'—')+' · tracking '+papersData.length+' papers over '+allDates.length+' days';
+    '<span class="pulse"></span>'+scholarPrefix+'Last updated: '+esc(maxDate||'—')+' · tracking '+papersData.length+' papers over '+allDates.length+' days';
 
   /* ── overall trend chart ── */
   var col=chartColors();
